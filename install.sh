@@ -178,6 +178,15 @@ if [ "$INSTALL_MAINLINE" = true ]; then
             print_skip "Chaotic-AUR mirrorlist already installed"
         fi
 
+        # Install keyring (contains all trusted keys for Chaotic-AUR packages)
+        if ! package_installed "chaotic-keyring"; then
+            print_step "Installing Chaotic-AUR keyring..."
+            sudo pacman -U https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst --noconfirm
+            print_success "Chaotic-AUR keyring installed"
+        else
+            print_skip "Chaotic-AUR keyring already installed"
+        fi
+
         # Add repository to pacman.conf if not already present
         if ! grep -q "\[chaotic-aur\]" /etc/pacman.conf 2>/dev/null; then
             print_step "Adding Chaotic-AUR repository to pacman.conf..."
@@ -199,6 +208,11 @@ Include = /etc/pacman.d/chaotic-mirrorlist' | sudo tee -a /etc/pacman.conf >/dev
     sudo pacman -Syy --noconfirm
     print_success "Package database updated"
 
+    # Refresh keyring to ensure all package signing keys are trusted
+    print_step "Refreshing package signing keys..."
+    sudo pacman -S --noconfirm chaotic-keyring
+    print_success "Package signing keys refreshed"
+
     if package_installed "linux-mainline"; then
         print_skip "linux-mainline kernel already installed"
     else
@@ -209,11 +223,39 @@ Include = /etc/pacman.d/chaotic-mirrorlist' | sudo tee -a /etc/pacman.conf >/dev
 
     # Update bootloader configuration
     print_step "Updating bootloader configuration..."
-    if command_exists grub-mkconfig; then
+    if [ -f /boot/limine.conf ]; then
+        print_step "Setting mainline kernel as default for Limine..."
+        # Find the index of the linux-mainline entry
+        MAINLINE_INDEX=$(grep -n "//linux-mainline" /boot/limine.conf | head -1 | cut -d: -f1)
+        if [ -n "$MAINLINE_INDEX" ]; then
+            # Count how many boot entries exist before the mainline entry
+            # Entries start with "//" (2 slashes) but not "///" (3 slashes which are submenus)
+            ENTRY_INDEX=$(awk -v line="$MAINLINE_INDEX" 'NR < line && /^  \/\/[^\/]/ {count++} END {print count}' /boot/limine.conf)
+
+            # Update default_entry in limine.conf
+            sudo sed -i "s/^default_entry:.*/default_entry: $ENTRY_INDEX/" /boot/limine.conf
+            print_success "Mainline kernel (entry $ENTRY_INDEX) set as default in Limine"
+        else
+            print_error "Could not find linux-mainline entry in limine.conf"
+        fi
+    elif command_exists grub-mkconfig; then
         sudo grub-mkconfig -o /boot/grub/grub.cfg
         print_success "GRUB configuration updated"
+
+        # Set mainline as default in GRUB
+        print_step "Setting mainline kernel as default..."
+        sudo grub-set-default "Advanced options for Arch Linux>Arch Linux, with Linux linux-mainline" 2>/dev/null || \
+        print_error "Could not set default - please set manually in GRUB menu"
     elif command_exists bootctl; then
-        print_skip "systemd-boot detected - no configuration needed"
+        print_step "Setting mainline kernel as default for systemd-boot..."
+        # Find the mainline boot entry
+        MAINLINE_ENTRY=$(ls /boot/loader/entries/*linux-mainline.conf 2>/dev/null | head -1 | xargs basename 2>/dev/null)
+        if [ -n "$MAINLINE_ENTRY" ]; then
+            echo "default $MAINLINE_ENTRY" | sudo tee /boot/loader/loader.conf >/dev/null
+            print_success "Mainline kernel set as default"
+        else
+            print_error "Could not find mainline boot entry - please set manually"
+        fi
     else
         print_error "Unknown bootloader - please update manually"
     fi
