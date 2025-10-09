@@ -1,0 +1,118 @@
+# Starship configuration converted from Oh My Posh EDM115-newline theme
+# Uses terminal theme colors for better integration
+
+# Add newline at the start
+add_newline = true
+command_timeout = 200
+
+# Define the format with multi-line layout matching the Oh My Posh theme
+# Left side: text + root + os + path
+# Right side: git + languages
+# New line: prompt character
+format = """
+╭─\
+$sudo\
+$os\
+$directory\
+$fill\
+$git_branch\
+$git_status\
+$nodejs\
+$package\
+$python\
+$java\
+$php
+╰─ ❯❯ """
+
+# Right-aligned fill character
+[fill]
+symbol = " "
+
+# Username segment - uses terminal theme colors
+[username]
+show_always = true
+format = "[$user]($style)"
+style_user = "bold cyan"
+style_root = "bold red"
+
+# Root indicator (sudo)
+[sudo]
+disabled = false
+format = "[󱐋]($style)"
+style = "bold red"
+
+# OS icon
+[os]
+disabled = false
+format = "[$symbol ]($style)"
+style = "bold cyan"
+
+[os.symbols]
+Arch = "󰣇"
+Linux = ""
+Macos = ""
+Windows = "󰍲"
+
+# Directory/Path segment
+[directory]
+format = "[ 󰉖 $path]($style)"
+style = "bold cyan"
+truncation_length = 5
+truncate_to_repo = false
+
+# Git branch
+[git_branch]
+format = "[ ($symbol$branch)]($style)"
+symbol = ""
+style = "bold yellow"
+
+# Git status
+[git_status]
+format = "([  $all_status$ahead_behind]($style))"
+style = "bold yellow"
+ahead = " +${count}"
+behind = " -${count}"
+diverged = " +${ahead_count} -${behind_count}"
+up_to_date = ""
+untracked = "?${count}"
+stashed = "󰏖${count}"
+modified = "!${count}"
+staged = "+${count}"
+renamed = "»${count}"
+deleted = "✘${count}"
+conflicted = "=${count}"
+
+# Node.js
+[nodejs]
+format = "[ $version]($style)"
+style = "bold green"
+detect_files = ["package.json", ".node-version", ".nvmrc"]
+
+# npm
+[package]
+format = "[ $version]($style)"
+symbol = ""
+style = "bold red"
+display_private = false
+
+# Python
+[python]
+format = "[ $version]($style)"
+style = "bold green"
+detect_files = [".python-version", "requirements.txt", "pyproject.toml", "Pipfile"]
+
+# Java
+[java]
+format = "[ $version]($style)"
+style = "bold magenta"
+detect_files = ["pom.xml", "build.gradle", "build.gradle.kts"]
+
+# PHP
+[php]
+format = "[ $version]($style)"
+style = "bold blue"
+detect_files = ["composer.json"]
+
+# Character (disabled since we use custom prompt in format)
+[character]
+disabled = true

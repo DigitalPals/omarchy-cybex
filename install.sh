@@ -448,7 +448,50 @@ else
 fi
 
 ################################################################################
-# 6. Generate SSH Key for GitHub
+# 6. Configure Starship Prompt
+################################################################################
+
+print_header "Configuring Starship Prompt"
+
+STARSHIP_SRC="$SCRIPT_DIR/starship.toml"
+STARSHIP_DEST="$HOME/.config/starship.toml"
+
+if [ ! -f "$STARSHIP_SRC" ]; then
+    print_error "Source starship.toml not found at $STARSHIP_SRC"
+    print_error "Skipping Starship configuration..."
+else
+    # Create destination directory if it doesn't exist
+    mkdir -p "$(dirname "$STARSHIP_DEST")"
+
+    if [ -f "$STARSHIP_DEST" ]; then
+        # Use diff if cmp is not available
+        if command_exists cmp; then
+            if cmp -s "$STARSHIP_SRC" "$STARSHIP_DEST"; then
+                print_skip "Starship configuration is already up to date"
+            else
+                print_step "Updating starship.toml..."
+                cp "$STARSHIP_SRC" "$STARSHIP_DEST"
+                print_success "Starship configuration updated"
+            fi
+        else
+            # Fallback to diff if cmp is not available
+            if diff -q "$STARSHIP_SRC" "$STARSHIP_DEST" >/dev/null 2>&1; then
+                print_skip "Starship configuration is already up to date"
+            else
+                print_step "Updating starship.toml..."
+                cp "$STARSHIP_SRC" "$STARSHIP_DEST"
+                print_success "Starship configuration updated"
+            fi
+        fi
+    else
+        print_step "Copying starship.toml to $STARSHIP_DEST..."
+        cp "$STARSHIP_SRC" "$STARSHIP_DEST"
+        print_success "Starship prompt configured"
+    fi
+fi
+
+################################################################################
+# 7. Generate SSH Key for GitHub
 ################################################################################
 
 print_header "Generating SSH Key for GitHub"
@@ -539,6 +582,7 @@ echo -e "  • Claude Code (${CYAN}claude${NC} command)"
 echo -e "  • Codex CLI (${CYAN}codex${NC} command)"
 echo -e "  • Custom screensaver"
 echo -e "  • Cybex Plymouth theme"
+echo -e "  • Starship prompt configuration"
 echo -e "  • SSH key for GitHub\n"
 
 echo -e "${BOLD}${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
