@@ -95,6 +95,7 @@ show_usage() {
     echo -e "  ${GREEN}plymouth${NC}         Install Cybex Plymouth boot theme"
     echo -e "  ${GREEN}prompt${NC}           Configure Starship prompt (alias: starship)"
     echo -e "  ${GREEN}starship${NC}         Configure Starship prompt (alias: prompt)"
+    echo -e "  ${GREEN}macos-keys${NC}       Configure macOS-style shortcuts (keyd + Alacritty)"
     echo -e "  ${GREEN}ssh${NC}              Generate SSH key for GitHub (alias: ssh-key)"
     echo -e "  ${GREEN}ssh-key${NC}          Generate SSH key for GitHub (alias: ssh)"
     echo -e "  ${GREEN}mainline${NC}         Install and configure mainline kernel (Chaotic-AUR)"
@@ -126,6 +127,7 @@ INSTALL_CODEX=false
 INSTALL_SCREENSAVER=false
 INSTALL_PLYMOUTH=false
 INSTALL_PROMPT=false
+INSTALL_MACOS_KEYS=false
 INSTALL_SSH=false
 INSTALL_MAINLINE=false
 
@@ -159,6 +161,9 @@ for arg in "$@"; do
         prompt|starship)
             INSTALL_PROMPT=true
             ;;
+        macos-keys)
+            INSTALL_MACOS_KEYS=true
+            ;;
         ssh|ssh-key)
             INSTALL_SSH=true
             ;;
@@ -182,6 +187,7 @@ if [ "$INSTALL_ALL" = true ]; then
     INSTALL_SCREENSAVER=true
     INSTALL_PLYMOUTH=true
     INSTALL_PROMPT=true
+    INSTALL_MACOS_KEYS=true
     INSTALL_SSH=true
 fi
 
@@ -208,12 +214,12 @@ NEED_INTERNET=false
 NEED_DISK_SPACE=false
 
 # Components that require sudo
-if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PLYMOUTH" = true ]; then
+if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || [ "$INSTALL_MACOS_KEYS" = true ]; then
     NEED_SUDO=true
 fi
 
 # Components that require internet
-if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || [ "$INSTALL_MAINLINE" = true ]; then
+if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_MACOS_KEYS" = true ]; then
     NEED_INTERNET=true
 fi
 
@@ -676,7 +682,112 @@ if [ "$INSTALL_PROMPT" = true ]; then
 fi
 
 ################################################################################
-# 7. Generate SSH Key for GitHub
+# 7. Configure macOS-style Shortcuts
+################################################################################
+
+if [ "$INSTALL_MACOS_KEYS" = true ]; then
+    print_header "Configuring macOS-style Shortcuts"
+
+    # Ensure keyd package is installed
+    if package_installed "keyd"; then
+        print_skip "keyd package already installed"
+    else
+        print_step "Installing keyd..."
+        sudo pacman -S --noconfirm keyd
+        print_success "keyd installed"
+    fi
+
+    KEYD_CONFIG_SRC="$SCRIPT_DIR/keyd/macos_shortcuts.conf"
+    KEYD_CONFIG_DEST="/etc/keyd/default.conf"
+
+    if [ ! -f "$KEYD_CONFIG_SRC" ]; then
+        print_error "keyd config not found at $KEYD_CONFIG_SRC"
+    else
+        if sudo test -f "$KEYD_CONFIG_DEST"; then
+            if command_exists cmp; then
+                if sudo cmp -s "$KEYD_CONFIG_SRC" "$KEYD_CONFIG_DEST"; then
+                    print_skip "keyd configuration already up to date"
+                else
+                    print_step "Updating keyd configuration..."
+                    sudo install -D "$KEYD_CONFIG_SRC" "$KEYD_CONFIG_DEST"
+                    print_success "keyd configuration updated"
+                fi
+            else
+                if sudo diff -q "$KEYD_CONFIG_SRC" "$KEYD_CONFIG_DEST" >/dev/null 2>&1; then
+                    print_skip "keyd configuration already up to date"
+                else
+                    print_step "Updating keyd configuration..."
+                    sudo install -D "$KEYD_CONFIG_SRC" "$KEYD_CONFIG_DEST"
+                    print_success "keyd configuration updated"
+                fi
+            fi
+        else
+            print_step "Installing keyd configuration..."
+            sudo install -D "$KEYD_CONFIG_SRC" "$KEYD_CONFIG_DEST"
+            print_success "keyd configuration installed"
+        fi
+    fi
+
+    # Enable and start keyd service
+    print_step "Enabling and starting keyd service..."
+    if sudo systemctl enable --now keyd >/dev/null 2>&1; then
+        print_success "keyd service enabled and running"
+    else
+        print_error "Failed to enable/start keyd - please verify 'sudo systemctl status keyd'"
+    fi
+
+    if sudo systemctl is-active --quiet keyd; then
+        print_step "Reloading keyd to apply configuration..."
+        if sudo keyd reload >/dev/null 2>&1; then
+            print_success "keyd reloaded"
+        else
+            print_error "Failed to reload keyd - run 'sudo keyd reload' manually"
+        fi
+    fi
+
+    # Ensure Alacritty bindings are present
+    ALACRITTY_SRC="$SCRIPT_DIR/alacritty/alacritty.toml"
+    ALACRITTY_DEST="$HOME/.config/alacritty/alacritty.toml"
+
+    if [ ! -f "$ALACRITTY_SRC" ]; then
+        print_error "Alacritty config not found at $ALACRITTY_SRC"
+    else
+        mkdir -p "$(dirname "$ALACRITTY_DEST")"
+
+        if [ -f "$ALACRITTY_DEST" ]; then
+            if command_exists cmp; then
+                if cmp -s "$ALACRITTY_SRC" "$ALACRITTY_DEST"; then
+                    print_skip "Alacritty configuration already up to date"
+                else
+                    BACKUP_PATH="${ALACRITTY_DEST}.bak.$(date +%Y%m%d%H%M%S)"
+                    print_step "Backing up existing Alacritty config to $BACKUP_PATH..."
+                    cp "$ALACRITTY_DEST" "$BACKUP_PATH"
+                    print_step "Updating Alacritty configuration..."
+                    cp "$ALACRITTY_SRC" "$ALACRITTY_DEST"
+                    print_success "Alacritty configuration updated"
+                fi
+            else
+                if diff -q "$ALACRITTY_SRC" "$ALACRITTY_DEST" >/dev/null 2>&1; then
+                    print_skip "Alacritty configuration already up to date"
+                else
+                    BACKUP_PATH="${ALACRITTY_DEST}.bak.$(date +%Y%m%d%H%M%S)"
+                    print_step "Backing up existing Alacritty config to $BACKUP_PATH..."
+                    cp "$ALACRITTY_DEST" "$BACKUP_PATH"
+                    print_step "Updating Alacritty configuration..."
+                    cp "$ALACRITTY_SRC" "$ALACRITTY_DEST"
+                    print_success "Alacritty configuration updated"
+                fi
+            fi
+        else
+            print_step "Installing Alacritty configuration..."
+            cp "$ALACRITTY_SRC" "$ALACRITTY_DEST"
+            print_success "Alacritty configuration installed"
+        fi
+    fi
+fi
+
+################################################################################
+# 8. Generate SSH Key for GitHub
 ################################################################################
 
 if [ "$INSTALL_SSH" = true ]; then
@@ -765,7 +876,8 @@ echo -e "${GREEN}All tasks completed successfully!${NC}\n"
 if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
    [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || \
    [ "$INSTALL_SCREENSAVER" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || \
-   [ "$INSTALL_PROMPT" = true ] || [ "$INSTALL_SSH" = true ]; then
+   [ "$INSTALL_PROMPT" = true ] || [ "$INSTALL_MACOS_KEYS" = true ] || \
+   [ "$INSTALL_SSH" = true ]; then
 
     echo -e "${BOLD}Installed/configured components:${NC}"
 
@@ -795,6 +907,10 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
 
     if [ "$INSTALL_PROMPT" = true ]; then
         echo -e "  • Starship prompt configuration"
+    fi
+
+    if [ "$INSTALL_MACOS_KEYS" = true ]; then
+        echo -e "  • macOS-style shortcuts (keyd + Alacritty)"
     fi
 
     if [ "$INSTALL_SSH" = true ]; then
@@ -829,7 +945,8 @@ fi
 
 # Next steps section - only show if there are actual next steps
 if [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || \
-   [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PLYMOUTH" = true ]; then
+   [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || \
+   [ "$INSTALL_MACOS_KEYS" = true ]; then
 
     echo -e "${BOLD}Next steps:${NC}"
 
@@ -846,6 +963,10 @@ if [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || \
     # Plymouth theme reboot reminder
     if [ "$INSTALL_PLYMOUTH" = true ]; then
         echo -e "  • Reboot to see the new Plymouth boot splash"
+    fi
+
+    if [ "$INSTALL_MACOS_KEYS" = true ]; then
+        echo -e "  • Reload Hyprland (${CYAN}hyprctl reload${NC}) and restart Alacritty to pick up the new shortcuts"
     fi
 
     echo ""

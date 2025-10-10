@@ -69,6 +69,7 @@ chmod +x install.sh
 | `plymouth` | Install Cybex Plymouth boot theme | - |
 | `prompt` | Configure Starship prompt | `starship` |
 | `starship` | Configure Starship prompt | `prompt` |
+| `macos-keys` | Configure keyd macOS-style shortcuts and Alacritty bindings | - |
 | `ssh` | Generate SSH key for GitHub | `ssh-key` |
 | `ssh-key` | Generate SSH key for GitHub | `ssh` |
 | `mainline` | Install and configure mainline kernel | - |
@@ -87,6 +88,9 @@ chmod +x install.sh
 
 # Configure Starship prompt and install Codex
 ./install.sh prompt codex
+
+# Configure macOS-style shortcuts (keyd + Alacritty)
+./install.sh macos-keys
 
 # Install multiple specific components
 ./install.sh packages claude codex ssh
@@ -121,6 +125,9 @@ Configures a modern, informative shell prompt with:
 - Directory path display
 - Custom styling
 
+### macOS-style Shortcuts
+Installs and configures keyd plus updated Alacritty bindings so `SUPER+C/V/A/Z` behave like macOS while all Hyprland shortcuts keep working. See [macOS-style Shortcuts (keyd)](#macos-style-shortcuts-keyd) for details.
+
 ### SSH Key
 Generates an ED25519 SSH key pair and configures ssh-agent for automatic key loading. Provides instructions for adding the key to GitHub.
 
@@ -134,6 +141,24 @@ Installs the latest mainline Linux kernel from Chaotic-AUR. Automatically config
 - 🌐 **Internet required** - Most components require downloading packages
 - 🔄 **Reboot needed** - Mainline kernel and Plymouth theme require a reboot
 - 📁 **PATH updates** - After installing Claude/Codex, run `source ~/.bashrc` or restart your shell
+
+## macOS-style Shortcuts (keyd)
+
+Get global macOS-style shortcuts (`SUPER+C/V/A/Z`) while keeping Hyprland bindings such as `SUPER+ENTER`:
+
+```bash
+./install.sh macos-keys
+```
+
+This target:
+- Installs `keyd` if necessary and deploys `keyd/macos_shortcuts.conf` to `/etc/keyd/default.conf`
+- Enables and reloads the `keyd` service so the remap is active immediately
+- Installs the curated `alacritty/alacritty.toml`, backing up your existing file the first time so Alacritty maps `CTRL+Insert`/`Shift+Insert` to copy/paste
+
+After the script finishes:
+- Reload Hyprland (`hyprctl reload`) and relaunch Alacritty to pick up the new bindings.
+- Test `SUPER+C/V/A/Z` in Chromium or another GUI app, and in Alacritty to confirm copy/paste works without sending SIGINT.
+- Use `sudo keyd -m` if you want to inspect the translated key events in real time.
 
 ## Post-Installation
 
