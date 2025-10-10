@@ -26,6 +26,7 @@ This script automates the installation and configuration of:
 - ⭐ **Starship Prompt** - Modern, customized shell prompt
 - ⌨️  **macOS-style Shortcuts** - keyd remaps + Alacritty bindings for Super+C/V/A/Z
 - 🖥️  **Hyprland Bindings** - Custom application and window manager bindings
+- 🪟 **Auto-Tile Helper** - Automatically float first window per workspace, tile when second opens
 - 🖱️  **Hot Corners** - macOS-style hot corners for Hyprland via waycorner
 - 🔑 **SSH Key** - Generate and configure SSH key for GitHub
 - 🐧 **Mainline Kernel** - Latest mainline Linux kernel (Chaotic-AUR)
@@ -73,6 +74,7 @@ chmod +x install.sh
 | `prompt` | Configure Starship prompt | `starship` |
 | `macos-keys` | Configure keyd macOS-style shortcuts and Alacritty bindings | - |
 | `hyprland` | Configure Hyprland bindings | `hyprland-bindings` |
+| `auto-tile` | Install Hyprland auto-tiling helper | - |
 | `waycorner` | Install and configure hot corners for Hyprland | - |
 | `ssh` | Generate SSH key for GitHub | `ssh-key` |
 | `mainline` | Install and configure mainline kernel | - |
@@ -94,6 +96,9 @@ chmod +x install.sh
 
 # Configure macOS-style shortcuts (keyd + Alacritty)
 ./install.sh macos-keys
+
+# Install Hyprland auto-tile helper
+./install.sh auto-tile
 
 # Install multiple specific components
 ./install.sh packages claude codex ssh
@@ -133,6 +138,14 @@ Installs and configures keyd plus updated Alacritty bindings so `SUPER+C/V/A/Z` 
 
 ### Hyprland Bindings
 Deploys custom Hyprland key bindings to `~/.config/hypr/bindings.conf`. Includes application shortcuts (terminal, browser, file manager) and window management keybindings.
+
+### Auto-Tile Helper
+Installs a background helper script that provides intelligent window management for Hyprland:
+- **First window** on any workspace - Automatically floats and centers at 60% screen size
+- **Second window opens** - Both windows automatically switch to tiled mode
+- **Window closes** - Remaining single window returns to floating/centered
+
+Dependencies (`jq`, `socat`) are installed automatically. The helper starts immediately and is added to Hyprland autostart for persistence across reboots.
 
 ### Waycorner (Hot Corners)
 Installs waycorner via cargo and configures macOS-style hot corners for Hyprland:

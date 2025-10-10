@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+
+################################################################################
+# Hyprland Auto-Tile Helper
+#
+# Floats the first window on each workspace, recenters it, and reverts to
+# tiling once an additional window appears. Works with modern Hyprland releases
+# that emit JSON events over the `.socket2.sock` IPC socket.
+################################################################################
+
+set -euo pipefail
+
+log() {
+    printf '[auto-tile] %s\n' "$*" >&2
+}
+
+FLOAT_WIDTH_PERCENT=60
+FLOAT_HEIGHT_PERCENT=60
+
+# Determine Hyprland runtime dir and instance signature.
+HYPR_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/hypr
+INSTANCE=${HYPRLAND_INSTANCE_SIGNATURE:-}
+
+if [[ -z "$INSTANCE" ]]; then
+    if [[ -d "$HYPR_RUNTIME_DIR" ]]; then
+        INSTANCE=$(ls -1 "$HYPR_RUNTIME_DIR" 2>/dev/null | head -n1)
+    fi
+    if [[ -z "$INSTANCE" ]]; then
+        log "Could not determine Hyprland instance signature."
+        exit 1
+    fi
+    log "Auto-detected Hyprland instance: $INSTANCE"
+fi
+
+SOCKET="$HYPR_RUNTIME_DIR/$INSTANCE/.socket2.sock"
+
+if [[ ! -S "$SOCKET" ]]; then
+    log "Hyprland socket not found at $SOCKET"
+    exit 1
+fi
+
+declare -A forcedFloating=()
+declare -A monitorWidth=()
+declare -A monitorHeight=()
+
+refresh_monitors() {
+    local monitors_json
+    monitors_json=$(hyprctl -j monitors 2>/dev/null) || return
+
+    # Clear existing caches before repopulating.
+    monitorWidth=()
+    monitorHeight=()
+
+    while IFS=$'\t' read -r mid mw mh; do
+        [[ -z "$mid" ]] && continue
+        monitorWidth["$mid"]=$mw
+        monitorHeight["$mid"]=$mh
+    done < <(echo "$monitors_json" | jq -r '.[] | [.id, .width, .height] | @tsv')
+}
+
+resize_window() {
+    local addr=$1
+    local monitor_id=$2
+
+    [[ -z "$monitor_id" ]] && return
+
+    local width=${monitorWidth[$monitor_id]:-}
+    local height=${monitorHeight[$monitor_id]:-}
+
+    if [[ -z "$width" || -z "$height" ]]; then
+        refresh_monitors
+        width=${monitorWidth[$monitor_id]:-}
+        height=${monitorHeight[$monitor_id]:-}
+    fi
+
+    if [[ -z "$width" || -z "$height" ]]; then
+        return
+    fi
+
+    local target_w=$(( width * FLOAT_WIDTH_PERCENT / 100 ))
+    local target_h=$(( height * FLOAT_HEIGHT_PERCENT / 100 ))
+
+    hyprctl dispatch resizewindowpixel "exact $target_w $target_h,address:$addr" >/dev/null 2>&1 || true
+}
+
+float_window() {
+    local addr=$1
+    local is_floating=$2
+    local monitor_id=$3
+
+    if [[ "$is_floating" != "true" ]]; then
+        hyprctl dispatch togglefloating "address:$addr" >/dev/null 2>&1 || true
+    fi
+    resize_window "$addr" "$monitor_id"
+    hyprctl dispatch centerwindow "address:$addr" >/dev/null 2>&1 || true
+    forcedFloating["$addr"]=1
+}
+
+tile_window() {
+    local addr=$1
+    local is_floating=$2
+
+    if [[ "$is_floating" == "true" ]]; then
+        hyprctl dispatch togglefloating "address:$addr" >/dev/null 2>&1 || true
+    fi
+    unset 'forcedFloating[$addr]' || true
+}
+
+rebalance_workspaces() {
+    local clients
+    clients=$(hyprctl -j clients 2>/dev/null) || return
+
+    # Track currently mapped windows so we don't try to manage stale addresses.
+    declare -A present=()
+    while IFS= read -r addr; do
+        [[ -n "$addr" ]] && present["$addr"]=1
+    done < <(echo "$clients" | jq -r '.[].address')
+
+    for addr in "${!forcedFloating[@]}"; do
+        [[ -z "${present[$addr]:-}" ]] && unset 'forcedFloating[$addr]'
+    done
+
+    # Iterate workspaces and enforce floating/tiling.
+    while IFS= read -r row; do
+        mapfile -t addresses < <(jq -r '.clients[].address' <<<"$row")
+        mapfile -t float_states < <(jq -r '.clients[].floating' <<<"$row")
+        mapfile -t monitor_ids < <(jq -r '.clients[].monitor' <<<"$row")
+        local count=${#addresses[@]}
+
+        if ((count == 1)); then
+            local addr=${addresses[0]}
+            local state=${float_states[0]}
+            local monitor_id=${monitor_ids[0]}
+            if [[ -z "${forcedFloating[$addr]:-}" ]]; then
+                float_window "$addr" "$state" "$monitor_id"
+            fi
+        elif ((count > 1)); then
+            for idx in "${!addresses[@]}"; do
+                local addr=${addresses[$idx]}
+                local state=${float_states[$idx]}
+                if [[ -n "${forcedFloating[$addr]:-}" ]]; then
+                    tile_window "$addr" "$state"
+                fi
+            done
+        fi
+    done < <(
+        echo "$clients" | jq -rc '
+            map(select(.workspace.id >= 0 and .mapped == true and .fullscreen == 0)) |
+            sort_by(.workspace.id) |
+            group_by(.workspace.id)[] |
+            {clients: [.[] | {address: .address, floating: .floating, monitor: .monitor}]}
+        '
+    )
+}
+
+listen_events() {
+    while true; do
+        socat -U - UNIX-CONNECT:"$SOCKET" | while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            local event payload
+            event=${line%%>>*}
+            payload=${line#*>>}
+
+            case "$event" in
+                openwindow|closewindow|movewindow|movewindowv2|workspace|workspacev2|changeworkspace|changefloatingmode)
+                    rebalance_workspaces
+                    ;;
+                *)
+                    ;;
+            esac
+        done
+
+        # Minimal back-off before retrying if the socket stream ends.
+        sleep 0.5
+    done
+}
+
+rebalance_workspaces
+listen_events
