@@ -1,0 +1,15 @@
+# Hot Corners for Hyprland via waycorner
+
+# Top Right - Lock Screen
+[top-right]
+locations = ["top_right"]
+command = ["omarchy-lock-screen"]
+size = 10
+timeout_ms = 250
+
+# Bottom Left - Start Screensaver
+[bottom-left]
+locations = ["bottom_left"]
+command = ["omarchy-launch-screensaver"]
+size = 10
+timeout_ms = 250

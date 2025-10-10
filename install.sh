@@ -96,6 +96,7 @@ show_usage() {
     echo -e "  ${GREEN}prompt${NC}           Configure Starship prompt (alias: starship)"
     echo -e "  ${GREEN}macos-keys${NC}       Configure macOS-style shortcuts (keyd + Alacritty)"
     echo -e "  ${GREEN}hyprland${NC}         Configure Hyprland bindings (alias: hyprland-bindings)"
+    echo -e "  ${GREEN}waycorner${NC}        Install and configure hot corners for Hyprland"
     echo -e "  ${GREEN}ssh${NC}              Generate SSH key for GitHub (alias: ssh-key)"
     echo -e "  ${GREEN}mainline${NC}         Install and configure mainline kernel (Chaotic-AUR)"
     echo ""
@@ -128,6 +129,7 @@ INSTALL_PLYMOUTH=false
 INSTALL_PROMPT=false
 INSTALL_MACOS_KEYS=false
 INSTALL_HYPRLAND_BINDINGS=false
+INSTALL_WAYCORNER=false
 INSTALL_SSH=false
 INSTALL_MAINLINE=false
 
@@ -167,6 +169,9 @@ for arg in "$@"; do
         hyprland|hyprland-bindings)
             INSTALL_HYPRLAND_BINDINGS=true
             ;;
+        waycorner)
+            INSTALL_WAYCORNER=true
+            ;;
         ssh|ssh-key)
             INSTALL_SSH=true
             ;;
@@ -192,6 +197,7 @@ if [ "$INSTALL_ALL" = true ]; then
     INSTALL_PROMPT=true
     INSTALL_MACOS_KEYS=true
     INSTALL_HYPRLAND_BINDINGS=true
+    INSTALL_WAYCORNER=true
     INSTALL_SSH=true
 fi
 
@@ -223,7 +229,7 @@ if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTA
 fi
 
 # Components that require internet
-if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_MACOS_KEYS" = true ]; then
+if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_MACOS_KEYS" = true ] || [ "$INSTALL_WAYCORNER" = true ]; then
     NEED_INTERNET=true
 fi
 
@@ -894,6 +900,94 @@ if [ "$INSTALL_HYPRLAND_BINDINGS" = true ]; then
 fi
 
 ################################################################################
+# 10. Install and Configure Waycorner (Hot Corners)
+################################################################################
+
+if [ "$INSTALL_WAYCORNER" = true ]; then
+    print_header "Installing Waycorner (Hot Corners)"
+
+    # Ensure cargo is available
+    if ! command_exists cargo; then
+        print_error "Rust/Cargo is not installed. Waycorner requires Rust to compile."
+        print_error "Install Rust first: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+        exit 1
+    fi
+
+    # Check if waycorner is already installed
+    if command_exists waycorner || [ -f "$HOME/.cargo/bin/waycorner" ]; then
+        print_skip "Waycorner is already installed"
+    else
+        print_step "Installing waycorner via cargo (this may take a few minutes)..."
+        cargo install waycorner --locked
+        print_success "Waycorner installed"
+    fi
+
+    # Configure waycorner
+    WAYCORNER_SRC="$SCRIPT_DIR/config/waycorner/config.toml"
+    WAYCORNER_DEST="$HOME/.config/waycorner/config.toml"
+
+    if [ ! -f "$WAYCORNER_SRC" ]; then
+        print_error "Source config.toml not found at $WAYCORNER_SRC"
+        print_error "Skipping waycorner configuration..."
+    else
+        # Create destination directory if it doesn't exist
+        mkdir -p "$(dirname "$WAYCORNER_DEST")"
+
+        if [ -f "$WAYCORNER_DEST" ]; then
+            # Use diff if cmp is not available
+            if command_exists cmp; then
+                if cmp -s "$WAYCORNER_SRC" "$WAYCORNER_DEST"; then
+                    print_skip "Waycorner configuration is already up to date"
+                else
+                    print_step "Updating waycorner config.toml..."
+                    cp "$WAYCORNER_SRC" "$WAYCORNER_DEST"
+                    print_success "Waycorner configuration updated"
+                fi
+            else
+                # Fallback to diff if cmp is not available
+                if diff -q "$WAYCORNER_SRC" "$WAYCORNER_DEST" >/dev/null 2>&1; then
+                    print_skip "Waycorner configuration is already up to date"
+                else
+                    print_step "Updating waycorner config.toml..."
+                    cp "$WAYCORNER_SRC" "$WAYCORNER_DEST"
+                    print_success "Waycorner configuration updated"
+                fi
+            fi
+        else
+            print_step "Copying config.toml to $WAYCORNER_DEST..."
+            cp "$WAYCORNER_SRC" "$WAYCORNER_DEST"
+            print_success "Waycorner configured"
+        fi
+    fi
+
+    # Add waycorner to Hyprland autostart
+    HYPRLAND_AUTOSTART="$HOME/.config/hypr/autostart.conf"
+
+    if [ -f "$HYPRLAND_AUTOSTART" ]; then
+        if grep -q "waycorner" "$HYPRLAND_AUTOSTART"; then
+            print_skip "Waycorner already in Hyprland autostart"
+        else
+            print_step "Adding waycorner to Hyprland autostart..."
+            echo "" >> "$HYPRLAND_AUTOSTART"
+            echo "# Hot corners" >> "$HYPRLAND_AUTOSTART"
+            echo "exec-once = ~/.cargo/bin/waycorner" >> "$HYPRLAND_AUTOSTART"
+            print_success "Waycorner added to Hyprland autostart"
+        fi
+    else
+        print_error "Hyprland autostart.conf not found at $HYPRLAND_AUTOSTART"
+        print_error "You'll need to manually add 'exec-once = ~/.cargo/bin/waycorner' to your Hyprland config"
+    fi
+
+    print_step "Starting waycorner for current session..."
+    if pgrep -x waycorner >/dev/null 2>&1; then
+        print_skip "Waycorner is already running"
+    else
+        "$HOME/.cargo/bin/waycorner" &>/dev/null &
+        print_success "Waycorner started"
+    fi
+fi
+
+################################################################################
 # Installation Complete
 ################################################################################
 
@@ -906,7 +1000,8 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
    [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || \
    [ "$INSTALL_SCREENSAVER" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || \
    [ "$INSTALL_PROMPT" = true ] || [ "$INSTALL_MACOS_KEYS" = true ] || \
-   [ "$INSTALL_HYPRLAND_BINDINGS" = true ] || [ "$INSTALL_SSH" = true ]; then
+   [ "$INSTALL_HYPRLAND_BINDINGS" = true ] || [ "$INSTALL_WAYCORNER" = true ] || \
+   [ "$INSTALL_SSH" = true ]; then
 
     echo -e "${BOLD}Installed/configured components:${NC}"
 
@@ -944,6 +1039,10 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
 
     if [ "$INSTALL_HYPRLAND_BINDINGS" = true ]; then
         echo -e "  • Hyprland bindings configuration"
+    fi
+
+    if [ "$INSTALL_WAYCORNER" = true ]; then
+        echo -e "  • Waycorner hot corners for Hyprland"
     fi
 
     if [ "$INSTALL_SSH" = true ]; then

@@ -26,6 +26,7 @@ This script automates the installation and configuration of:
 - ⭐ **Starship Prompt** - Modern, customized shell prompt
 - ⌨️  **macOS-style Shortcuts** - keyd remaps + Alacritty bindings for Super+C/V/A/Z
 - 🖥️  **Hyprland Bindings** - Custom application and window manager bindings
+- 🖱️  **Hot Corners** - macOS-style hot corners for Hyprland via waycorner
 - 🔑 **SSH Key** - Generate and configure SSH key for GitHub
 - 🐧 **Mainline Kernel** - Latest mainline Linux kernel (Chaotic-AUR)
 
@@ -72,6 +73,7 @@ chmod +x install.sh
 | `prompt` | Configure Starship prompt | `starship` |
 | `macos-keys` | Configure keyd macOS-style shortcuts and Alacritty bindings | - |
 | `hyprland` | Configure Hyprland bindings | `hyprland-bindings` |
+| `waycorner` | Install and configure hot corners for Hyprland | - |
 | `ssh` | Generate SSH key for GitHub | `ssh-key` |
 | `mainline` | Install and configure mainline kernel | - |
 
@@ -131,6 +133,13 @@ Installs and configures keyd plus updated Alacritty bindings so `SUPER+C/V/A/Z` 
 
 ### Hyprland Bindings
 Deploys custom Hyprland key bindings to `~/.config/hypr/bindings.conf`. Includes application shortcuts (terminal, browser, file manager) and window management keybindings.
+
+### Waycorner (Hot Corners)
+Installs waycorner via cargo and configures macOS-style hot corners for Hyprland:
+- **Top Right Corner** - Lock screen
+- **Bottom Left Corner** - Start screensaver
+
+Automatically adds waycorner to Hyprland autostart. Move your mouse to the corners to trigger actions!
 
 ### SSH Key
 Generates an ED25519 SSH key pair and configures ssh-agent for automatic key loading. Provides instructions for adding the key to GitHub.
