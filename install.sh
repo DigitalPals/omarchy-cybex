@@ -595,17 +595,13 @@ if [ "$INSTALL_PLYMOUTH" = true ]; then
             print_step "Installing Plymouth theme to $PLYMOUTH_DEST..."
             sudo mkdir -p "$PLYMOUTH_DEST"
             # Copy all files except hidden directories like .claude
-            cd "$PLYMOUTH_SRC"
-            sudo find . -type f ! -path '*/\.*' -exec cp --parents {} "$PLYMOUTH_DEST/" \;
-            cd - >/dev/null
+            (cd "$PLYMOUTH_SRC" && sudo find . -type f ! -path '*/\.*' -exec cp --parents {} "$PLYMOUTH_DEST/" \;)
             print_success "Plymouth theme files installed"
         else
             print_skip "Plymouth theme directory already exists"
             print_step "Updating Plymouth theme files..."
             # Copy all files except hidden directories like .claude
-            cd "$PLYMOUTH_SRC"
-            sudo find . -type f ! -path '*/\.*' -exec cp --parents {} "$PLYMOUTH_DEST/" \;
-            cd - >/dev/null
+            (cd "$PLYMOUTH_SRC" && sudo find . -type f ! -path '*/\.*' -exec cp --parents {} "$PLYMOUTH_DEST/" \;)
             print_success "Plymouth theme files updated"
         fi
 
