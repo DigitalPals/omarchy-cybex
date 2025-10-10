@@ -538,7 +538,7 @@ fi
 if [ "$INSTALL_SCREENSAVER" = true ]; then
     print_header "Configuring Screensaver"
 
-    SCREENSAVER_SRC="$SCRIPT_DIR/screensaver/screensaver.txt"
+    SCREENSAVER_SRC="$SCRIPT_DIR/config/screensaver/screensaver.txt"
     SCREENSAVER_DEST="$HOME/.config/omarchy/branding/screensaver.txt"
 
     if [ ! -f "$SCREENSAVER_SRC" ]; then
@@ -583,7 +583,7 @@ fi
 if [ "$INSTALL_PLYMOUTH" = true ]; then
     print_header "Installing Plymouth Theme (Cybex)"
 
-    PLYMOUTH_SRC="$SCRIPT_DIR/plymouth/themes/cybex"
+    PLYMOUTH_SRC="$SCRIPT_DIR/config/plymouth/themes/cybex"
     PLYMOUTH_DEST="/usr/share/plymouth/themes/cybex"
 
     if [ ! -d "$PLYMOUTH_SRC" ]; then
@@ -643,7 +643,7 @@ fi
 if [ "$INSTALL_PROMPT" = true ]; then
     print_header "Configuring Starship Prompt"
 
-    STARSHIP_SRC="$SCRIPT_DIR/starship/starship.toml"
+    STARSHIP_SRC="$SCRIPT_DIR/config/starship/starship.toml"
     STARSHIP_DEST="$HOME/.config/starship.toml"
 
     if [ ! -f "$STARSHIP_SRC" ]; then
@@ -697,7 +697,7 @@ if [ "$INSTALL_MACOS_KEYS" = true ]; then
         print_success "keyd installed"
     fi
 
-    KEYD_CONFIG_SRC="$SCRIPT_DIR/keyd/macos_shortcuts.conf"
+    KEYD_CONFIG_SRC="$SCRIPT_DIR/config/keyd/macos_shortcuts.conf"
     KEYD_CONFIG_DEST="/etc/keyd/default.conf"
 
     if [ ! -f "$KEYD_CONFIG_SRC" ]; then
@@ -746,7 +746,7 @@ if [ "$INSTALL_MACOS_KEYS" = true ]; then
     fi
 
     # Ensure Alacritty bindings are present
-    ALACRITTY_SRC="$SCRIPT_DIR/alacritty/alacritty.toml"
+    ALACRITTY_SRC="$SCRIPT_DIR/config/alacritty/alacritty.toml"
     ALACRITTY_DEST="$HOME/.config/alacritty/alacritty.toml"
 
     if [ ! -f "$ALACRITTY_SRC" ]; then
