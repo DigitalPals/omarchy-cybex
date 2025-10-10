@@ -538,7 +538,7 @@ fi
 if [ "$INSTALL_SCREENSAVER" = true ]; then
     print_header "Configuring Screensaver"
 
-    SCREENSAVER_SRC="$SCRIPT_DIR/screensaver.txt"
+    SCREENSAVER_SRC="$SCRIPT_DIR/screensaver/screensaver.txt"
     SCREENSAVER_DEST="$HOME/.config/omarchy/branding/screensaver.txt"
 
     if [ ! -f "$SCREENSAVER_SRC" ]; then
@@ -643,7 +643,7 @@ fi
 if [ "$INSTALL_PROMPT" = true ]; then
     print_header "Configuring Starship Prompt"
 
-    STARSHIP_SRC="$SCRIPT_DIR/starship.toml"
+    STARSHIP_SRC="$SCRIPT_DIR/starship/starship.toml"
     STARSHIP_DEST="$HOME/.config/starship.toml"
 
     if [ ! -f "$STARSHIP_SRC" ]; then
