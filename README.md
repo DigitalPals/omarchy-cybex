@@ -40,7 +40,7 @@ This script automates the installation and configuration of:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/omarchy-myway.git
+git clone https://github.com/DigitalPals/omarchy-myway.git
 cd omarchy-myway
 
 # Make the script executable
