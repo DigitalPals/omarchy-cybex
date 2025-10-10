@@ -24,7 +24,8 @@ This script automates the installation and configuration of:
 - 🎨 **Custom Screensaver** - Personalized ASCII art screensaver
 - 🚀 **Plymouth Theme** - Cybex boot splash theme
 - ⭐ **Starship Prompt** - Modern, customized shell prompt
-- ⌨️ **macOS-style Shortcuts** - keyd remaps + Alacritty bindings for Super+C/V/A/Z
+- ⌨️  **macOS-style Shortcuts** - keyd remaps + Alacritty bindings for Super+C/V/A/Z
+- 🖥️  **Hyprland Bindings** - Custom application and window manager bindings
 - 🔑 **SSH Key** - Generate and configure SSH key for GitHub
 - 🐧 **Mainline Kernel** - Latest mainline Linux kernel (Chaotic-AUR)
 
@@ -69,10 +70,9 @@ chmod +x install.sh
 | `screensaver` | Configure custom screensaver | - |
 | `plymouth` | Install Cybex Plymouth boot theme | - |
 | `prompt` | Configure Starship prompt | `starship` |
-| `starship` | Configure Starship prompt | `prompt` |
 | `macos-keys` | Configure keyd macOS-style shortcuts and Alacritty bindings | - |
+| `hyprland` | Configure Hyprland bindings | `hyprland-bindings` |
 | `ssh` | Generate SSH key for GitHub | `ssh-key` |
-| `ssh-key` | Generate SSH key for GitHub | `ssh` |
 | `mainline` | Install and configure mainline kernel | - |
 
 ### Examples
@@ -128,6 +128,9 @@ Configures a modern, informative shell prompt with:
 
 ### macOS-style Shortcuts
 Installs and configures keyd plus updated Alacritty bindings so `SUPER+C/V/A/Z` behave like macOS while all Hyprland shortcuts keep working.
+
+### Hyprland Bindings
+Deploys custom Hyprland key bindings to `~/.config/hypr/bindings.conf`. Includes application shortcuts (terminal, browser, file manager) and window management keybindings.
 
 ### SSH Key
 Generates an ED25519 SSH key pair and configures ssh-agent for automatic key loading. Provides instructions for adding the key to GitHub.

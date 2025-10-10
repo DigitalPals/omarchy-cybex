@@ -94,10 +94,9 @@ show_usage() {
     echo -e "  ${GREEN}screensaver${NC}      Configure custom screensaver"
     echo -e "  ${GREEN}plymouth${NC}         Install Cybex Plymouth boot theme"
     echo -e "  ${GREEN}prompt${NC}           Configure Starship prompt (alias: starship)"
-    echo -e "  ${GREEN}starship${NC}         Configure Starship prompt (alias: prompt)"
     echo -e "  ${GREEN}macos-keys${NC}       Configure macOS-style shortcuts (keyd + Alacritty)"
+    echo -e "  ${GREEN}hyprland${NC}         Configure Hyprland bindings (alias: hyprland-bindings)"
     echo -e "  ${GREEN}ssh${NC}              Generate SSH key for GitHub (alias: ssh-key)"
-    echo -e "  ${GREEN}ssh-key${NC}          Generate SSH key for GitHub (alias: ssh)"
     echo -e "  ${GREEN}mainline${NC}         Install and configure mainline kernel (Chaotic-AUR)"
     echo ""
     echo -e "${BOLD}EXAMPLES:${NC}"
@@ -128,6 +127,7 @@ INSTALL_SCREENSAVER=false
 INSTALL_PLYMOUTH=false
 INSTALL_PROMPT=false
 INSTALL_MACOS_KEYS=false
+INSTALL_HYPRLAND_BINDINGS=false
 INSTALL_SSH=false
 INSTALL_MAINLINE=false
 
@@ -164,6 +164,9 @@ for arg in "$@"; do
         macos-keys)
             INSTALL_MACOS_KEYS=true
             ;;
+        hyprland|hyprland-bindings)
+            INSTALL_HYPRLAND_BINDINGS=true
+            ;;
         ssh|ssh-key)
             INSTALL_SSH=true
             ;;
@@ -188,6 +191,7 @@ if [ "$INSTALL_ALL" = true ]; then
     INSTALL_PLYMOUTH=true
     INSTALL_PROMPT=true
     INSTALL_MACOS_KEYS=true
+    INSTALL_HYPRLAND_BINDINGS=true
     INSTALL_SSH=true
 fi
 
@@ -861,6 +865,35 @@ EOF
 fi
 
 ################################################################################
+# 9. Configure Hyprland Bindings
+################################################################################
+
+if [ "$INSTALL_HYPRLAND_BINDINGS" = true ]; then
+    print_header "Configuring Hyprland Bindings"
+
+    HYPRLAND_BINDINGS_SRC="$SCRIPT_DIR/config/hyprland/bindings.conf"
+    HYPRLAND_BINDINGS_DEST="$HOME/.config/hypr/bindings.conf"
+
+    if [ ! -f "$HYPRLAND_BINDINGS_SRC" ]; then
+        print_error "Source bindings.conf not found at $HYPRLAND_BINDINGS_SRC"
+        print_error "Skipping Hyprland bindings configuration..."
+    else
+        # Create destination directory if it doesn't exist
+        mkdir -p "$(dirname "$HYPRLAND_BINDINGS_DEST")"
+
+        if [ -f "$HYPRLAND_BINDINGS_DEST" ]; then
+            print_step "Updating Hyprland bindings.conf..."
+            cp "$HYPRLAND_BINDINGS_SRC" "$HYPRLAND_BINDINGS_DEST"
+            print_success "Hyprland bindings updated"
+        else
+            print_step "Copying bindings.conf to $HYPRLAND_BINDINGS_DEST..."
+            cp "$HYPRLAND_BINDINGS_SRC" "$HYPRLAND_BINDINGS_DEST"
+            print_success "Hyprland bindings configured"
+        fi
+    fi
+fi
+
+################################################################################
 # Installation Complete
 ################################################################################
 
@@ -873,7 +906,7 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
    [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || \
    [ "$INSTALL_SCREENSAVER" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || \
    [ "$INSTALL_PROMPT" = true ] || [ "$INSTALL_MACOS_KEYS" = true ] || \
-   [ "$INSTALL_SSH" = true ]; then
+   [ "$INSTALL_HYPRLAND_BINDINGS" = true ] || [ "$INSTALL_SSH" = true ]; then
 
     echo -e "${BOLD}Installed/configured components:${NC}"
 
@@ -907,6 +940,10 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
 
     if [ "$INSTALL_MACOS_KEYS" = true ]; then
         echo -e "  • macOS-style shortcuts (keyd + Alacritty)"
+    fi
+
+    if [ "$INSTALL_HYPRLAND_BINDINGS" = true ]; then
+        echo -e "  • Hyprland bindings configuration"
     fi
 
     if [ "$INSTALL_SSH" = true ]; then
