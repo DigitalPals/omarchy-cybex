@@ -14,8 +14,15 @@ log() {
     printf '[auto-tile] %s\n' "$*" >&2
 }
 
-FLOAT_WIDTH_PERCENT=60
-FLOAT_HEIGHT_PERCENT=60
+# Default percentages - will be adjusted based on logical screen size
+DEFAULT_FLOAT_WIDTH_PERCENT=60
+DEFAULT_FLOAT_HEIGHT_PERCENT=60
+
+# Thresholds for small screens (use larger percentages)
+SMALL_SCREEN_WIDTH=1600
+SMALL_SCREEN_HEIGHT=1000
+SMALL_SCREEN_WIDTH_PERCENT=90
+SMALL_SCREEN_HEIGHT_PERCENT=90
 
 # Determine Hyprland runtime dir and instance signature.
 HYPR_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/hypr
@@ -42,6 +49,7 @@ fi
 declare -A forcedFloating=()
 declare -A monitorWidth=()
 declare -A monitorHeight=()
+declare -A monitorScale=()
 
 refresh_monitors() {
     local monitors_json
@@ -50,12 +58,14 @@ refresh_monitors() {
     # Clear existing caches before repopulating.
     monitorWidth=()
     monitorHeight=()
+    monitorScale=()
 
-    while IFS=$'\t' read -r mid mw mh; do
+    while IFS=$'\t' read -r mid mw mh ms; do
         [[ -z "$mid" ]] && continue
         monitorWidth["$mid"]=$mw
         monitorHeight["$mid"]=$mh
-    done < <(echo "$monitors_json" | jq -r '.[] | [.id, .width, .height] | @tsv')
+        monitorScale["$mid"]=$ms
+    done < <(echo "$monitors_json" | jq -r '.[] | [.id, .width, .height, .scale] | @tsv')
 }
 
 resize_window() {
@@ -66,19 +76,38 @@ resize_window() {
 
     local width=${monitorWidth[$monitor_id]:-}
     local height=${monitorHeight[$monitor_id]:-}
+    local scale=${monitorScale[$monitor_id]:-}
 
-    if [[ -z "$width" || -z "$height" ]]; then
+    if [[ -z "$width" || -z "$height" || -z "$scale" ]]; then
         refresh_monitors
         width=${monitorWidth[$monitor_id]:-}
         height=${monitorHeight[$monitor_id]:-}
+        scale=${monitorScale[$monitor_id]:-}
     fi
 
-    if [[ -z "$width" || -z "$height" ]]; then
+    if [[ -z "$width" || -z "$height" || -z "$scale" ]]; then
         return
     fi
 
-    local target_w=$(( width * FLOAT_WIDTH_PERCENT / 100 ))
-    local target_h=$(( height * FLOAT_HEIGHT_PERCENT / 100 ))
+    # Calculate logical dimensions
+    local logical_width=$(awk "BEGIN {printf \"%.0f\", $width / $scale}")
+    local logical_height=$(awk "BEGIN {printf \"%.0f\", $height / $scale}")
+
+    # Adjust percentages based on logical screen size
+    local width_percent=$DEFAULT_FLOAT_WIDTH_PERCENT
+    local height_percent=$DEFAULT_FLOAT_HEIGHT_PERCENT
+
+    if (( logical_width < SMALL_SCREEN_WIDTH )); then
+        width_percent=$SMALL_SCREEN_WIDTH_PERCENT
+    fi
+
+    if (( logical_height < SMALL_SCREEN_HEIGHT )); then
+        height_percent=$SMALL_SCREEN_HEIGHT_PERCENT
+    fi
+
+    # Calculate target size in logical coordinates
+    local target_w=$(awk "BEGIN {printf \"%.0f\", $logical_width * $width_percent / 100}")
+    local target_h=$(awk "BEGIN {printf \"%.0f\", $logical_height * $height_percent / 100}")
 
     hyprctl dispatch resizewindowpixel "exact $target_w $target_h,address:$addr" >/dev/null 2>&1 || true
 }
