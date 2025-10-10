@@ -442,7 +442,9 @@ if [ "$INSTALL_CLAUDE" = true ]; then
     mkdir -p "$HOME/.local/bin"
 
     if command_exists claude; then
-        print_skip "Claude Code is already installed"
+        print_step "Updating Claude Code to latest version..."
+        npm install -g @anthropic-ai/claude-code --prefix "$HOME/.local"
+        print_success "Claude Code updated"
     else
         print_step "Installing Claude Code globally..."
         npm install -g @anthropic-ai/claude-code --prefix "$HOME/.local"
@@ -495,7 +497,9 @@ if [ "$INSTALL_CODEX" = true ]; then
     mkdir -p "$HOME/.local/bin"
 
     if command_exists codex; then
-        print_skip "Codex CLI is already installed"
+        print_step "Updating Codex CLI to latest version..."
+        npm install -g @openai/codex --prefix "$HOME/.local"
+        print_success "Codex CLI updated"
     else
         print_step "Installing Codex CLI globally..."
         npm install -g @openai/codex --prefix "$HOME/.local"
