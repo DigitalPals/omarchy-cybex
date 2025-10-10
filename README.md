@@ -24,7 +24,7 @@ This script automates the installation and configuration of:
 - 🎨 **Custom Screensaver** - Personalized ASCII art screensaver
 - 🚀 **Plymouth Theme** - Cybex boot splash theme
 - ⭐ **Starship Prompt** - Modern, customized shell prompt
-- ⌘ **macOS-style Shortcuts** - keyd remaps + Alacritty bindings for Super+C/V/A/Z
+- ⌨️ **macOS-style Shortcuts** - keyd remaps + Alacritty bindings for Super+C/V/A/Z
 - 🔑 **SSH Key** - Generate and configure SSH key for GitHub
 - 🐧 **Mainline Kernel** - Latest mainline Linux kernel (Chaotic-AUR)
 
