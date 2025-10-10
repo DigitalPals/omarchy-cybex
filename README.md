@@ -127,7 +127,7 @@ Configures a modern, informative shell prompt with:
 - Custom styling
 
 ### macOS-style Shortcuts
-Installs and configures keyd plus updated Alacritty bindings so `SUPER+C/V/A/Z` behave like macOS while all Hyprland shortcuts keep working. See [macOS-style Shortcuts (keyd)](#macos-style-shortcuts-keyd) for details.
+Installs and configures keyd plus updated Alacritty bindings so `SUPER+C/V/A/Z` behave like macOS while all Hyprland shortcuts keep working.
 
 ### SSH Key
 Generates an ED25519 SSH key pair and configures ssh-agent for automatic key loading. Provides instructions for adding the key to GitHub.
