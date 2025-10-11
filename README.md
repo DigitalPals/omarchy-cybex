@@ -1,4 +1,4 @@
-# Omarchy MyWay
+# Omarchy Cybex
 
 ```
                      $$a.
@@ -42,8 +42,8 @@ This script automates the installation and configuration of:
 
 ```bash
 # Clone the repository
-git clone https://github.com/DigitalPals/omarchy-myway.git
-cd omarchy-myway
+git clone https://github.com/DigitalPals/omarchy-cybex.git
+cd omarchy-cybex
 
 # Make the script executable
 chmod +x install.sh
