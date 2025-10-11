@@ -966,12 +966,14 @@ if [ "$INSTALL_AUTO_TILE" = true ]; then
     else
         mkdir -p "$HOME/.local/bin"
 
+        AUTO_TILE_UPDATED=false
         if [ -f "$AUTO_TILE_DEST" ] && command_exists cmp && cmp -s "$AUTO_TILE_SRC" "$AUTO_TILE_DEST"; then
             print_skip "auto-tile script already up to date"
         else
             print_step "Installing auto-tile helper to $AUTO_TILE_DEST..."
             cp "$AUTO_TILE_SRC" "$AUTO_TILE_DEST"
             chmod +x "$AUTO_TILE_DEST"
+            AUTO_TILE_UPDATED=true
             print_success "auto-tile helper installed"
         fi
 
@@ -995,7 +997,15 @@ if [ "$INSTALL_AUTO_TILE" = true ]; then
         if [ -f "$AUTO_TILE_DEST" ]; then
             print_step "Starting auto-tile helper for current session..."
             if pgrep -f "$AUTO_TILE_DEST" >/dev/null 2>&1; then
-                print_skip "auto-tile helper is already running"
+                if [ "$AUTO_TILE_UPDATED" = true ]; then
+                    print_step "Restarting auto-tile helper with updated script..."
+                    pkill -f "$AUTO_TILE_DEST" || true
+                    sleep 0.5
+                    "$AUTO_TILE_DEST" >/dev/null 2>&1 &
+                    print_success "auto-tile helper restarted"
+                else
+                    print_skip "auto-tile helper is already running"
+                fi
             else
                 "$AUTO_TILE_DEST" >/dev/null 2>&1 &
                 print_success "auto-tile helper started"
