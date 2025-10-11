@@ -98,6 +98,7 @@ show_usage() {
     echo -e "  ${GREEN}hyprland${NC}         Configure Hyprland bindings (alias: hyprland-bindings)"
     echo -e "  ${GREEN}auto-tile${NC}        Install Hyprland auto-tiling helper"
     echo -e "  ${GREEN}waycorner${NC}        Install and configure hot corners for Hyprland"
+    echo -e "  ${GREEN}waybar${NC}           Configure Waybar idle toggle indicator"
     echo -e "  ${GREEN}ssh${NC}              Generate SSH key for GitHub (alias: ssh-key)"
     echo -e "  ${GREEN}mainline${NC}         Install and configure mainline kernel (Chaotic-AUR)"
     echo ""
@@ -132,6 +133,7 @@ INSTALL_MACOS_KEYS=false
 INSTALL_HYPRLAND_BINDINGS=false
 INSTALL_AUTO_TILE=false
 INSTALL_WAYCORNER=false
+INSTALL_WAYBAR=false
 INSTALL_SSH=false
 INSTALL_MAINLINE=false
 
@@ -177,6 +179,9 @@ for arg in "$@"; do
         waycorner)
             INSTALL_WAYCORNER=true
             ;;
+        waybar)
+            INSTALL_WAYBAR=true
+            ;;
         ssh|ssh-key)
             INSTALL_SSH=true
             ;;
@@ -204,6 +209,7 @@ if [ "$INSTALL_ALL" = true ]; then
     INSTALL_HYPRLAND_BINDINGS=true
     INSTALL_AUTO_TILE=true
     INSTALL_WAYCORNER=true
+    INSTALL_WAYBAR=true
     INSTALL_SSH=true
 fi
 
@@ -1103,6 +1109,142 @@ if [ "$INSTALL_WAYCORNER" = true ]; then
 fi
 
 ################################################################################
+# 12. Configure Waybar Idle Toggle
+################################################################################
+
+if [ "$INSTALL_WAYBAR" = true ]; then
+    print_header "Configuring Waybar Idle Toggle"
+
+    WAYBAR_CONFIG_SRC="$SCRIPT_DIR/config/waybar/config.jsonc"
+    WAYBAR_CONFIG_DEST="$HOME/.config/waybar/config.jsonc"
+    WAYBAR_STYLE_SRC="$SCRIPT_DIR/config/waybar/style.css"
+    WAYBAR_STYLE_DEST="$HOME/.config/waybar/style.css"
+    INDICATOR_SRC="$SCRIPT_DIR/config/waybar/indicators/idle-toggle.sh"
+    INDICATOR_DEST="$HOME/.local/share/omarchy/default/waybar/indicators/idle-toggle.sh"
+
+    # Install waybar configuration
+    if [ ! -f "$WAYBAR_CONFIG_SRC" ]; then
+        print_error "Source config.jsonc not found at $WAYBAR_CONFIG_SRC"
+        print_error "Skipping waybar configuration..."
+    else
+        mkdir -p "$(dirname "$WAYBAR_CONFIG_DEST")"
+
+        if [ -f "$WAYBAR_CONFIG_DEST" ]; then
+            # Use diff if cmp is not available
+            if command_exists cmp; then
+                if cmp -s "$WAYBAR_CONFIG_SRC" "$WAYBAR_CONFIG_DEST"; then
+                    print_skip "Waybar configuration already up to date"
+                else
+                    print_step "Updating waybar config.jsonc..."
+                    cp "$WAYBAR_CONFIG_SRC" "$WAYBAR_CONFIG_DEST"
+                    print_success "Waybar configuration updated"
+                fi
+            else
+                # Fallback to diff if cmp is not available
+                if diff -q "$WAYBAR_CONFIG_SRC" "$WAYBAR_CONFIG_DEST" >/dev/null 2>&1; then
+                    print_skip "Waybar configuration already up to date"
+                else
+                    print_step "Updating waybar config.jsonc..."
+                    cp "$WAYBAR_CONFIG_SRC" "$WAYBAR_CONFIG_DEST"
+                    print_success "Waybar configuration updated"
+                fi
+            fi
+        else
+            print_step "Installing waybar config.jsonc to $WAYBAR_CONFIG_DEST..."
+            cp "$WAYBAR_CONFIG_SRC" "$WAYBAR_CONFIG_DEST"
+            print_success "Waybar configuration installed"
+        fi
+    fi
+
+    # Install waybar style
+    if [ ! -f "$WAYBAR_STYLE_SRC" ]; then
+        print_error "Source style.css not found at $WAYBAR_STYLE_SRC"
+        print_error "Skipping waybar style..."
+    else
+        mkdir -p "$(dirname "$WAYBAR_STYLE_DEST")"
+
+        if [ -f "$WAYBAR_STYLE_DEST" ]; then
+            # Use diff if cmp is not available
+            if command_exists cmp; then
+                if cmp -s "$WAYBAR_STYLE_SRC" "$WAYBAR_STYLE_DEST"; then
+                    print_skip "Waybar style already up to date"
+                else
+                    print_step "Updating waybar style.css..."
+                    cp "$WAYBAR_STYLE_SRC" "$WAYBAR_STYLE_DEST"
+                    print_success "Waybar style updated"
+                fi
+            else
+                # Fallback to diff if cmp is not available
+                if diff -q "$WAYBAR_STYLE_SRC" "$WAYBAR_STYLE_DEST" >/dev/null 2>&1; then
+                    print_skip "Waybar style already up to date"
+                else
+                    print_step "Updating waybar style.css..."
+                    cp "$WAYBAR_STYLE_SRC" "$WAYBAR_STYLE_DEST"
+                    print_success "Waybar style updated"
+                fi
+            fi
+        else
+            print_step "Installing waybar style.css to $WAYBAR_STYLE_DEST..."
+            cp "$WAYBAR_STYLE_SRC" "$WAYBAR_STYLE_DEST"
+            print_success "Waybar style installed"
+        fi
+    fi
+
+    # Install indicator script
+    if [ ! -f "$INDICATOR_SRC" ]; then
+        print_error "Source idle-toggle.sh not found at $INDICATOR_SRC"
+        print_error "Skipping waybar idle toggle indicator..."
+    else
+        # Create destination directory if it doesn't exist
+        mkdir -p "$(dirname "$INDICATOR_DEST")"
+
+        if [ -f "$INDICATOR_DEST" ]; then
+            # Use diff if cmp is not available
+            if command_exists cmp; then
+                if cmp -s "$INDICATOR_SRC" "$INDICATOR_DEST"; then
+                    print_skip "Waybar idle toggle indicator already up to date"
+                else
+                    print_step "Updating idle-toggle.sh..."
+                    cp "$INDICATOR_SRC" "$INDICATOR_DEST"
+                    chmod +x "$INDICATOR_DEST"
+                    print_success "Waybar idle toggle indicator updated"
+                fi
+            else
+                # Fallback to diff if cmp is not available
+                if diff -q "$INDICATOR_SRC" "$INDICATOR_DEST" >/dev/null 2>&1; then
+                    print_skip "Waybar idle toggle indicator already up to date"
+                else
+                    print_step "Updating idle-toggle.sh..."
+                    cp "$INDICATOR_SRC" "$INDICATOR_DEST"
+                    chmod +x "$INDICATOR_DEST"
+                    print_success "Waybar idle toggle indicator updated"
+                fi
+            fi
+        else
+            print_step "Installing idle-toggle.sh to $INDICATOR_DEST..."
+            cp "$INDICATOR_SRC" "$INDICATOR_DEST"
+            chmod +x "$INDICATOR_DEST"
+            print_success "Waybar idle toggle indicator installed"
+        fi
+
+        print_step "Restarting Waybar to apply changes..."
+        if command_exists omarchy-restart-waybar; then
+            omarchy-restart-waybar &>/dev/null
+            print_success "Waybar restarted"
+        else
+            if pgrep -x waybar >/dev/null 2>&1; then
+                pkill -x waybar
+                sleep 0.5
+                waybar &>/dev/null &
+                print_success "Waybar restarted"
+            else
+                print_skip "Waybar is not running"
+            fi
+        fi
+    fi
+fi
+
+################################################################################
 # Installation Complete
 ################################################################################
 
@@ -1116,7 +1258,7 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
    [ "$INSTALL_SCREENSAVER" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || \
    [ "$INSTALL_PROMPT" = true ] || [ "$INSTALL_MACOS_KEYS" = true ] || \
    [ "$INSTALL_HYPRLAND_BINDINGS" = true ] || [ "$INSTALL_AUTO_TILE" = true ] || \
-   [ "$INSTALL_WAYCORNER" = true ] || \
+   [ "$INSTALL_WAYCORNER" = true ] || [ "$INSTALL_WAYBAR" = true ] || \
    [ "$INSTALL_SSH" = true ]; then
 
     echo -e "${BOLD}Installed/configured components:${NC}"
@@ -1163,6 +1305,10 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
 
     if [ "$INSTALL_WAYCORNER" = true ]; then
         echo -e "  • Waycorner hot corners for Hyprland"
+    fi
+
+    if [ "$INSTALL_WAYBAR" = true ]; then
+        echo -e "  • Waybar idle toggle indicator"
     fi
 
     if [ "$INSTALL_SSH" = true ]; then
