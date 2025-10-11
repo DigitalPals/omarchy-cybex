@@ -903,6 +903,27 @@ if [ "$INSTALL_HYPRLAND_BINDINGS" = true ]; then
             print_success "Hyprland bindings configured"
         fi
     fi
+
+    HYPRLAND_INPUT_SRC="$SCRIPT_DIR/config/hyprland/input.conf"
+    HYPRLAND_INPUT_DEST="$HOME/.config/hypr/input.conf"
+
+    if [ ! -f "$HYPRLAND_INPUT_SRC" ]; then
+        print_error "Source input.conf not found at $HYPRLAND_INPUT_SRC"
+        print_error "Skipping Hyprland input configuration..."
+    else
+        # Create destination directory if it doesn't exist
+        mkdir -p "$(dirname "$HYPRLAND_INPUT_DEST")"
+
+        if [ -f "$HYPRLAND_INPUT_DEST" ]; then
+            print_step "Updating Hyprland input.conf..."
+            cp "$HYPRLAND_INPUT_SRC" "$HYPRLAND_INPUT_DEST"
+            print_success "Hyprland input configuration updated"
+        else
+            print_step "Copying input.conf to $HYPRLAND_INPUT_DEST..."
+            cp "$HYPRLAND_INPUT_SRC" "$HYPRLAND_INPUT_DEST"
+            print_success "Hyprland input configuration configured"
+        fi
+    fi
 fi
 
 ################################################################################
