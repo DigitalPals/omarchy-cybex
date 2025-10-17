@@ -75,12 +75,66 @@ package_installed() {
     pacman -Q "$1" >/dev/null 2>&1
 }
 
+# Create a timestamped backup of a file
+create_backup() {
+    local file="$1"
+    if [ -f "$file" ]; then
+        local backup="${file}.bak.$(date +%Y%m%d%H%M%S)"
+        cp "$file" "$backup"
+        echo "$backup"
+        return 0
+    fi
+    return 1
+}
+
+# Remove lines added by this script from a file
+remove_script_lines() {
+    local file="$1"
+    local marker="$2"  # Comment marker to identify our additions (e.g., "Added by Omarchy")
+
+    if [ ! -f "$file" ]; then
+        return 0
+    fi
+
+    # Create temp file without our additions
+    local temp_file=$(mktemp)
+    local skip_next_non_empty=false
+
+    while IFS= read -r line; do
+        # If we found the marker in the previous iteration, skip non-empty lines
+        if [ "$skip_next_non_empty" = true ]; then
+            if [ -n "$line" ]; then
+                # Skip this non-empty line (the actual command/export)
+                skip_next_non_empty=false
+                continue
+            else
+                # Skip empty lines between marker and command
+                continue
+            fi
+        fi
+
+        # Check if this line contains our marker
+        if echo "$line" | grep -q "$marker"; then
+            # Skip the marker line and set flag to skip next non-empty line
+            skip_next_non_empty=true
+            continue
+        fi
+
+        # Keep this line
+        echo "$line" >> "$temp_file"
+    done < "$file"
+
+    # Replace original with cleaned version
+    mv "$temp_file" "$file"
+}
+
 show_usage() {
     echo -e "${BOLD}${CYAN}Omarchy Linux Post-Installation Setup Script${NC}"
     echo -e "${CYAN}https://omarchy.org${NC}"
     echo ""
     echo -e "${BOLD}USAGE:${NC}"
     echo -e "  $0 [OPTION]..."
+    echo -e "  $0 uninstall [OPTION]..."
     echo ""
     echo -e "${BOLD}DESCRIPTION:${NC}"
     echo -e "  Configure and install various components for your Omarchy Linux system."
@@ -102,17 +156,24 @@ show_usage() {
     echo -e "  ${GREEN}ssh${NC}              Generate SSH key for GitHub (alias: ssh-key)"
     echo -e "  ${GREEN}mainline${NC}         Install and configure mainline kernel (Chaotic-AUR)"
     echo ""
+    echo -e "${BOLD}UNINSTALL:${NC}"
+    echo -e "  ${YELLOW}uninstall${NC} all              Remove all installed components"
+    echo -e "  ${YELLOW}uninstall${NC} [option]         Remove specific component (e.g., auto-tile)"
+    echo ""
     echo -e "${BOLD}EXAMPLES:${NC}"
-    echo -e "  $0 all              # Install everything except mainline kernel"
-    echo -e "  $0 claude ssh       # Install Claude Code and generate SSH key"
-    echo -e "  $0 mainline         # Only configure mainline kernel"
-    echo -e "  $0 prompt codex     # Configure Starship prompt and install Codex CLI"
-    echo -e "  $0 packages claude codex ssh  # Install multiple specific components"
+    echo -e "  $0 all                    # Install everything except mainline kernel"
+    echo -e "  $0 claude ssh             # Install Claude Code and generate SSH key"
+    echo -e "  $0 mainline               # Only configure mainline kernel"
+    echo -e "  $0 prompt codex           # Configure Starship prompt and install Codex CLI"
+    echo -e "  $0 uninstall auto-tile    # Remove auto-tile helper"
+    echo -e "  $0 uninstall all          # Remove all installed components"
     echo ""
     echo -e "${BOLD}NOTES:${NC}"
     echo -e "  • Multiple options can be combined in a single command"
     echo -e "  • The script will request sudo privileges when needed"
     echo -e "  • Some components require a reboot to take effect (kernel, Plymouth theme)"
+    echo -e "  • Uninstall creates backups and restores original configurations when possible"
+    echo -e "  • SSH keys cannot be uninstalled for safety reasons"
     echo -e "  • Run without arguments to show this help message"
     echo ""
 }
@@ -121,7 +182,8 @@ show_usage() {
 # Command Line Arguments
 ################################################################################
 
-# Initialize all flags to false
+# Initialize mode and flags
+UNINSTALL_MODE=false
 INSTALL_ALL=false
 INSTALL_PACKAGES=false
 INSTALL_CLAUDE=false
@@ -141,6 +203,20 @@ INSTALL_MAINLINE=false
 if [ $# -eq 0 ]; then
     show_usage
     exit 0
+fi
+
+# Check if first argument is "uninstall"
+if [ "$1" = "uninstall" ]; then
+    UNINSTALL_MODE=true
+    shift  # Remove "uninstall" from arguments
+
+    # Show help if no uninstall target specified
+    if [ $# -eq 0 ]; then
+        print_error "Please specify what to uninstall (e.g., 'uninstall all' or 'uninstall auto-tile')"
+        echo ""
+        show_usage
+        exit 1
+    fi
 fi
 
 # Parse all command line arguments
@@ -183,6 +259,10 @@ for arg in "$@"; do
             INSTALL_WAYBAR=true
             ;;
         ssh|ssh-key)
+            if [ "$UNINSTALL_MODE" = true ]; then
+                print_error "SSH keys cannot be uninstalled for safety reasons"
+                exit 1
+            fi
             INSTALL_SSH=true
             ;;
         mainline)
@@ -211,6 +291,420 @@ if [ "$INSTALL_ALL" = true ]; then
     INSTALL_WAYCORNER=true
     INSTALL_WAYBAR=true
     INSTALL_SSH=true
+fi
+
+################################################################################
+# Uninstall Functions
+################################################################################
+
+if [ "$UNINSTALL_MODE" = true ]; then
+    print_header "Starting Omarchy Component Uninstall"
+
+    # Check if running as root
+    if [ "$EUID" -eq 0 ]; then
+        print_error "Please do not run this script as root or with sudo."
+        print_error "The script will request sudo when needed."
+        exit 1
+    fi
+
+    # Uninstall packages
+    if [ "$INSTALL_PACKAGES" = true ]; then
+        print_header "Uninstalling System Packages"
+
+        PACKAGES=("npm" "nano")
+
+        echo -e "${YELLOW}Warning: This will remove npm and nano packages.${NC}"
+        read -p "Are you sure you want to continue? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            for pkg in "${PACKAGES[@]}"; do
+                if package_installed "$pkg"; then
+                    print_step "Removing $pkg..."
+                    sudo pacman -R --noconfirm "$pkg"
+                    print_success "$pkg removed"
+                else
+                    print_skip "$pkg is not installed"
+                fi
+            done
+        else
+            print_skip "Skipping package removal"
+        fi
+    fi
+
+    # Uninstall Claude Code
+    if [ "$INSTALL_CLAUDE" = true ]; then
+        print_header "Uninstalling Claude Code"
+
+        if command_exists claude; then
+            print_step "Removing Claude Code..."
+            npm uninstall -g @anthropic-ai/claude-code --prefix "$HOME/.local"
+            print_success "Claude Code removed"
+        else
+            print_skip "Claude Code is not installed"
+        fi
+
+        # Remove PATH entry from .bashrc only if Codex is also not installed
+        if [ -f "$HOME/.bashrc" ]; then
+            if ! command_exists codex; then
+                print_step "Cleaning PATH from .bashrc..."
+                remove_script_lines "$HOME/.bashrc" "Added by Omarchy"
+                print_success "PATH entries cleaned from .bashrc"
+            else
+                print_skip "Keeping PATH entry (Codex is still installed)"
+            fi
+        fi
+    fi
+
+    # Uninstall Codex CLI
+    if [ "$INSTALL_CODEX" = true ]; then
+        print_header "Uninstalling Codex CLI"
+
+        if command_exists codex; then
+            print_step "Removing Codex CLI..."
+            npm uninstall -g @openai/codex --prefix "$HOME/.local"
+            print_success "Codex CLI removed"
+        else
+            print_skip "Codex CLI is not installed"
+        fi
+
+        # Remove PATH entry from .bashrc only if Claude is also not installed
+        if [ -f "$HOME/.bashrc" ]; then
+            if ! command_exists claude; then
+                print_step "Cleaning PATH from .bashrc..."
+                remove_script_lines "$HOME/.bashrc" "Added by Omarchy"
+                print_success "PATH entries cleaned from .bashrc"
+            else
+                print_skip "Keeping PATH entry (Claude Code is still installed)"
+            fi
+        fi
+    fi
+
+    # Uninstall screensaver
+    if [ "$INSTALL_SCREENSAVER" = true ]; then
+        print_header "Removing Custom Screensaver"
+
+        SCREENSAVER_DEST="$HOME/.config/omarchy/branding/screensaver.txt"
+
+        if [ -f "$SCREENSAVER_DEST" ]; then
+            # Find most recent backup
+            BACKUP=$(ls -t "${SCREENSAVER_DEST}.bak."* 2>/dev/null | head -1)
+
+            if [ -n "$BACKUP" ]; then
+                print_step "Restoring backup from $BACKUP..."
+                cp "$BACKUP" "$SCREENSAVER_DEST"
+                print_success "Screensaver backup restored"
+            else
+                print_step "Removing custom screensaver..."
+                rm "$SCREENSAVER_DEST"
+                print_success "Custom screensaver removed"
+            fi
+        else
+            print_skip "Custom screensaver not found"
+        fi
+    fi
+
+    # Uninstall Plymouth theme
+    if [ "$INSTALL_PLYMOUTH" = true ]; then
+        print_header "Uninstalling Plymouth Theme"
+
+        if command_exists plymouth-set-default-theme; then
+            CURRENT_THEME=$(sudo plymouth-set-default-theme)
+
+            if [ "$CURRENT_THEME" = "cybex" ]; then
+                print_step "Resetting Plymouth theme to default..."
+                sudo plymouth-set-default-theme -R spinner
+                print_success "Plymouth theme reset to spinner"
+
+                print_step "Rebuilding initramfs..."
+                sudo mkinitcpio -P
+                print_success "Initramfs rebuilt"
+            else
+                print_skip "Plymouth theme is not set to cybex"
+            fi
+
+            # Remove theme directory
+            if sudo test -d "/usr/share/plymouth/themes/cybex"; then
+                print_step "Removing cybex theme directory..."
+                sudo rm -rf "/usr/share/plymouth/themes/cybex"
+                print_success "Cybex theme directory removed"
+            fi
+        else
+            print_skip "Plymouth not installed"
+        fi
+    fi
+
+    # Uninstall Starship prompt
+    if [ "$INSTALL_PROMPT" = true ]; then
+        print_header "Removing Starship Configuration"
+
+        STARSHIP_DEST="$HOME/.config/starship.toml"
+
+        if [ -f "$STARSHIP_DEST" ]; then
+            # Find most recent backup
+            BACKUP=$(ls -t "${STARSHIP_DEST}.bak."* 2>/dev/null | head -1)
+
+            if [ -n "$BACKUP" ]; then
+                print_step "Restoring backup from $BACKUP..."
+                cp "$BACKUP" "$STARSHIP_DEST"
+                print_success "Starship configuration backup restored"
+            else
+                print_step "Removing Starship configuration..."
+                rm "$STARSHIP_DEST"
+                print_success "Starship configuration removed"
+            fi
+        else
+            print_skip "Starship configuration not found"
+        fi
+    fi
+
+    # Uninstall macOS-style shortcuts
+    if [ "$INSTALL_MACOS_KEYS" = true ]; then
+        print_header "Removing macOS-style Shortcuts"
+
+        # Stop and disable keyd service
+        if sudo systemctl is-active --quiet keyd; then
+            print_step "Stopping keyd service..."
+            sudo systemctl stop keyd
+            print_success "keyd service stopped"
+        fi
+
+        if sudo systemctl is-enabled --quiet keyd 2>/dev/null; then
+            print_step "Disabling keyd service..."
+            sudo systemctl disable keyd
+            print_success "keyd service disabled"
+        fi
+
+        # Remove keyd configuration
+        if sudo test -f "/etc/keyd/default.conf"; then
+            print_step "Removing keyd configuration..."
+            sudo rm "/etc/keyd/default.conf"
+            print_success "keyd configuration removed"
+        fi
+
+        # Restore Alacritty configuration
+        ALACRITTY_DEST="$HOME/.config/alacritty/alacritty.toml"
+        if [ -f "$ALACRITTY_DEST" ]; then
+            BACKUP=$(ls -t "${ALACRITTY_DEST}.bak."* 2>/dev/null | head -1)
+
+            if [ -n "$BACKUP" ]; then
+                print_step "Restoring Alacritty backup from $BACKUP..."
+                cp "$BACKUP" "$ALACRITTY_DEST"
+                print_success "Alacritty configuration restored"
+            else
+                print_skip "No Alacritty backup found"
+            fi
+        fi
+    fi
+
+    # Uninstall Hyprland bindings
+    if [ "$INSTALL_HYPRLAND_BINDINGS" = true ]; then
+        print_header "Removing Hyprland Configuration"
+
+        HYPRLAND_BINDINGS_DEST="$HOME/.config/hypr/bindings.conf"
+        HYPRLAND_INPUT_DEST="$HOME/.config/hypr/input.conf"
+
+        # Restore bindings.conf
+        if [ -f "$HYPRLAND_BINDINGS_DEST" ]; then
+            BACKUP=$(ls -t "${HYPRLAND_BINDINGS_DEST}.bak."* 2>/dev/null | head -1)
+
+            if [ -n "$BACKUP" ]; then
+                print_step "Restoring bindings.conf backup from $BACKUP..."
+                cp "$BACKUP" "$HYPRLAND_BINDINGS_DEST"
+                print_success "Hyprland bindings restored"
+            else
+                print_step "Removing bindings.conf..."
+                rm "$HYPRLAND_BINDINGS_DEST"
+                print_success "Hyprland bindings removed"
+            fi
+        fi
+
+        # Restore input.conf
+        if [ -f "$HYPRLAND_INPUT_DEST" ]; then
+            BACKUP=$(ls -t "${HYPRLAND_INPUT_DEST}.bak."* 2>/dev/null | head -1)
+
+            if [ -n "$BACKUP" ]; then
+                print_step "Restoring input.conf backup from $BACKUP..."
+                cp "$BACKUP" "$HYPRLAND_INPUT_DEST"
+                print_success "Hyprland input configuration restored"
+            else
+                print_step "Removing input.conf..."
+                rm "$HYPRLAND_INPUT_DEST"
+                print_success "Hyprland input configuration removed"
+            fi
+        fi
+    fi
+
+    # Uninstall auto-tile
+    if [ "$INSTALL_AUTO_TILE" = true ]; then
+        print_header "Uninstalling Auto-Tile Helper"
+
+        AUTO_TILE_DEST="$HOME/.local/bin/auto-tile"
+
+        # Kill running process
+        if pgrep -f "$AUTO_TILE_DEST" >/dev/null 2>&1; then
+            print_step "Stopping auto-tile helper..."
+            pkill -f "$AUTO_TILE_DEST"
+            print_success "auto-tile helper stopped"
+        fi
+
+        # Remove script
+        if [ -f "$AUTO_TILE_DEST" ]; then
+            print_step "Removing auto-tile script..."
+            rm "$AUTO_TILE_DEST"
+            print_success "auto-tile script removed"
+        fi
+
+        # Remove from autostart.conf
+        HYPRLAND_AUTOSTART="$HOME/.config/hypr/autostart.conf"
+        if [ -f "$HYPRLAND_AUTOSTART" ]; then
+            print_step "Removing auto-tile from Hyprland autostart..."
+            remove_script_lines "$HYPRLAND_AUTOSTART" "Auto-tile first window"
+            print_success "auto-tile removed from autostart"
+        fi
+    fi
+
+    # Uninstall waycorner
+    if [ "$INSTALL_WAYCORNER" = true ]; then
+        print_header "Uninstalling Waycorner"
+
+        # Kill running process
+        if pgrep -x waycorner >/dev/null 2>&1; then
+            print_step "Stopping waycorner..."
+            pkill -x waycorner
+            print_success "waycorner stopped"
+        fi
+
+        # Remove binary
+        if [ -f "$HOME/.cargo/bin/waycorner" ]; then
+            print_step "Removing waycorner binary..."
+            rm "$HOME/.cargo/bin/waycorner"
+            print_success "waycorner binary removed"
+        fi
+
+        # Restore or remove configuration
+        WAYCORNER_DEST="$HOME/.config/waycorner/config.toml"
+        if [ -f "$WAYCORNER_DEST" ]; then
+            BACKUP=$(ls -t "${WAYCORNER_DEST}.bak."* 2>/dev/null | head -1)
+
+            if [ -n "$BACKUP" ]; then
+                print_step "Restoring waycorner backup from $BACKUP..."
+                cp "$BACKUP" "$WAYCORNER_DEST"
+                print_success "waycorner configuration restored"
+            else
+                print_step "Removing waycorner configuration..."
+                rm -rf "$HOME/.config/waycorner"
+                print_success "waycorner configuration removed"
+            fi
+        fi
+
+        # Remove from autostart.conf
+        HYPRLAND_AUTOSTART="$HOME/.config/hypr/autostart.conf"
+        if [ -f "$HYPRLAND_AUTOSTART" ]; then
+            print_step "Removing waycorner from Hyprland autostart..."
+            remove_script_lines "$HYPRLAND_AUTOSTART" "Hot corners"
+            print_success "waycorner removed from autostart"
+        fi
+    fi
+
+    # Uninstall Waybar configuration
+    if [ "$INSTALL_WAYBAR" = true ]; then
+        print_header "Removing Waybar Configuration"
+
+        WAYBAR_CONFIG_DEST="$HOME/.config/waybar/config.jsonc"
+        WAYBAR_STYLE_DEST="$HOME/.config/waybar/style.css"
+        INDICATOR_DEST="$HOME/.local/share/omarchy/default/waybar/indicators/idle-toggle.sh"
+
+        # Restore config.jsonc
+        if [ -f "$WAYBAR_CONFIG_DEST" ]; then
+            BACKUP=$(ls -t "${WAYBAR_CONFIG_DEST}.bak."* 2>/dev/null | head -1)
+
+            if [ -n "$BACKUP" ]; then
+                print_step "Restoring waybar config backup from $BACKUP..."
+                cp "$BACKUP" "$WAYBAR_CONFIG_DEST"
+                print_success "Waybar configuration restored"
+            else
+                print_skip "No waybar config backup found"
+            fi
+        fi
+
+        # Restore style.css
+        if [ -f "$WAYBAR_STYLE_DEST" ]; then
+            BACKUP=$(ls -t "${WAYBAR_STYLE_DEST}.bak."* 2>/dev/null | head -1)
+
+            if [ -n "$BACKUP" ]; then
+                print_step "Restoring waybar style backup from $BACKUP..."
+                cp "$BACKUP" "$WAYBAR_STYLE_DEST"
+                print_success "Waybar style restored"
+            else
+                print_skip "No waybar style backup found"
+            fi
+        fi
+
+        # Remove indicator script
+        if [ -f "$INDICATOR_DEST" ]; then
+            print_step "Removing idle toggle indicator..."
+            rm "$INDICATOR_DEST"
+            print_success "Idle toggle indicator removed"
+        fi
+
+        # Restart waybar
+        print_step "Restarting Waybar..."
+        if command_exists omarchy-restart-waybar; then
+            omarchy-restart-waybar &>/dev/null
+            print_success "Waybar restarted"
+        else
+            if pgrep -x waybar >/dev/null 2>&1; then
+                pkill -x waybar
+                sleep 0.5
+                waybar &>/dev/null &
+                print_success "Waybar restarted"
+            else
+                print_skip "Waybar is not running"
+            fi
+        fi
+    fi
+
+    # Uninstall mainline kernel
+    if [ "$INSTALL_MAINLINE" = true ]; then
+        print_header "Uninstalling Mainline Kernel"
+
+        echo -e "${YELLOW}Warning: This will remove the mainline kernel and reset bootloader.${NC}"
+        read -p "Are you sure you want to continue? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            if package_installed "linux-mainline"; then
+                print_step "Removing linux-mainline kernel..."
+                sudo pacman -R --noconfirm linux-mainline
+                print_success "linux-mainline kernel removed"
+
+                # Reset bootloader to default kernel
+                print_step "Resetting bootloader to default kernel..."
+                if [ -f /boot/limine.conf ]; then
+                    sudo sed -i 's/^default_entry:.*/default_entry: 0/' /boot/limine.conf
+                    print_success "Limine bootloader reset to first entry"
+                elif command_exists grub-mkconfig; then
+                    sudo grub-mkconfig -o /boot/grub/grub.cfg
+                    print_success "GRUB configuration updated"
+                elif command_exists bootctl; then
+                    # Reset to first available entry
+                    FIRST_ENTRY=$(ls /boot/loader/entries/*.conf 2>/dev/null | head -1 | xargs basename 2>/dev/null)
+                    if [ -n "$FIRST_ENTRY" ]; then
+                        echo "default $FIRST_ENTRY" | sudo tee /boot/loader/loader.conf >/dev/null
+                        print_success "systemd-boot reset to $FIRST_ENTRY"
+                    fi
+                fi
+            else
+                print_skip "linux-mainline kernel is not installed"
+            fi
+        else
+            print_skip "Skipping mainline kernel removal"
+        fi
+    fi
+
+    print_header "Uninstall Complete!"
+    echo -e "${GREEN}Selected components have been uninstalled.${NC}\n"
+
+    exit 0
 fi
 
 ################################################################################
@@ -576,6 +1070,9 @@ if [ "$INSTALL_SCREENSAVER" = true ]; then
                 if cmp -s "$SCREENSAVER_SRC" "$SCREENSAVER_DEST"; then
                     print_skip "Screensaver is already up to date"
                 else
+                    print_step "Backing up existing screensaver.txt..."
+                    BACKUP_FILE=$(create_backup "$SCREENSAVER_DEST")
+                    print_success "Backup created at $BACKUP_FILE"
                     print_step "Updating screensaver.txt..."
                     cp "$SCREENSAVER_SRC" "$SCREENSAVER_DEST"
                     print_success "Screensaver updated"
@@ -585,6 +1082,9 @@ if [ "$INSTALL_SCREENSAVER" = true ]; then
                 if diff -q "$SCREENSAVER_SRC" "$SCREENSAVER_DEST" >/dev/null 2>&1; then
                     print_skip "Screensaver is already up to date"
                 else
+                    print_step "Backing up existing screensaver.txt..."
+                    BACKUP_FILE=$(create_backup "$SCREENSAVER_DEST")
+                    print_success "Backup created at $BACKUP_FILE"
                     print_step "Updating screensaver.txt..."
                     cp "$SCREENSAVER_SRC" "$SCREENSAVER_DEST"
                     print_success "Screensaver updated"
@@ -677,6 +1177,9 @@ if [ "$INSTALL_PROMPT" = true ]; then
                 if cmp -s "$STARSHIP_SRC" "$STARSHIP_DEST"; then
                     print_skip "Starship configuration is already up to date"
                 else
+                    print_step "Backing up existing starship.toml..."
+                    BACKUP_FILE=$(create_backup "$STARSHIP_DEST")
+                    print_success "Backup created at $BACKUP_FILE"
                     print_step "Updating starship.toml..."
                     cp "$STARSHIP_SRC" "$STARSHIP_DEST"
                     print_success "Starship configuration updated"
@@ -686,6 +1189,9 @@ if [ "$INSTALL_PROMPT" = true ]; then
                 if diff -q "$STARSHIP_SRC" "$STARSHIP_DEST" >/dev/null 2>&1; then
                     print_skip "Starship configuration is already up to date"
                 else
+                    print_step "Backing up existing starship.toml..."
+                    BACKUP_FILE=$(create_backup "$STARSHIP_DEST")
+                    print_success "Backup created at $BACKUP_FILE"
                     print_step "Updating starship.toml..."
                     cp "$STARSHIP_SRC" "$STARSHIP_DEST"
                     print_success "Starship configuration updated"
@@ -900,6 +1406,9 @@ if [ "$INSTALL_HYPRLAND_BINDINGS" = true ]; then
         mkdir -p "$(dirname "$HYPRLAND_BINDINGS_DEST")"
 
         if [ -f "$HYPRLAND_BINDINGS_DEST" ]; then
+            print_step "Backing up existing bindings.conf..."
+            BACKUP_FILE=$(create_backup "$HYPRLAND_BINDINGS_DEST")
+            print_success "Backup created at $BACKUP_FILE"
             print_step "Updating Hyprland bindings.conf..."
             cp "$HYPRLAND_BINDINGS_SRC" "$HYPRLAND_BINDINGS_DEST"
             print_success "Hyprland bindings updated"
@@ -921,6 +1430,9 @@ if [ "$INSTALL_HYPRLAND_BINDINGS" = true ]; then
         mkdir -p "$(dirname "$HYPRLAND_INPUT_DEST")"
 
         if [ -f "$HYPRLAND_INPUT_DEST" ]; then
+            print_step "Backing up existing input.conf..."
+            BACKUP_FILE=$(create_backup "$HYPRLAND_INPUT_DEST")
+            print_success "Backup created at $BACKUP_FILE"
             print_step "Updating Hyprland input.conf..."
             cp "$HYPRLAND_INPUT_SRC" "$HYPRLAND_INPUT_DEST"
             print_success "Hyprland input configuration updated"
@@ -1060,6 +1572,9 @@ if [ "$INSTALL_WAYCORNER" = true ]; then
                 if cmp -s "$WAYCORNER_SRC" "$WAYCORNER_DEST"; then
                     print_skip "Waycorner configuration is already up to date"
                 else
+                    print_step "Backing up existing config.toml..."
+                    BACKUP_FILE=$(create_backup "$WAYCORNER_DEST")
+                    print_success "Backup created at $BACKUP_FILE"
                     print_step "Updating waycorner config.toml..."
                     cp "$WAYCORNER_SRC" "$WAYCORNER_DEST"
                     print_success "Waycorner configuration updated"
@@ -1069,6 +1584,9 @@ if [ "$INSTALL_WAYCORNER" = true ]; then
                 if diff -q "$WAYCORNER_SRC" "$WAYCORNER_DEST" >/dev/null 2>&1; then
                     print_skip "Waycorner configuration is already up to date"
                 else
+                    print_step "Backing up existing config.toml..."
+                    BACKUP_FILE=$(create_backup "$WAYCORNER_DEST")
+                    print_success "Backup created at $BACKUP_FILE"
                     print_step "Updating waycorner config.toml..."
                     cp "$WAYCORNER_SRC" "$WAYCORNER_DEST"
                     print_success "Waycorner configuration updated"
@@ -1135,6 +1653,9 @@ if [ "$INSTALL_WAYBAR" = true ]; then
                 if cmp -s "$WAYBAR_CONFIG_SRC" "$WAYBAR_CONFIG_DEST"; then
                     print_skip "Waybar configuration already up to date"
                 else
+                    print_step "Backing up existing config.jsonc..."
+                    BACKUP_FILE=$(create_backup "$WAYBAR_CONFIG_DEST")
+                    print_success "Backup created at $BACKUP_FILE"
                     print_step "Updating waybar config.jsonc..."
                     cp "$WAYBAR_CONFIG_SRC" "$WAYBAR_CONFIG_DEST"
                     print_success "Waybar configuration updated"
@@ -1144,6 +1665,9 @@ if [ "$INSTALL_WAYBAR" = true ]; then
                 if diff -q "$WAYBAR_CONFIG_SRC" "$WAYBAR_CONFIG_DEST" >/dev/null 2>&1; then
                     print_skip "Waybar configuration already up to date"
                 else
+                    print_step "Backing up existing config.jsonc..."
+                    BACKUP_FILE=$(create_backup "$WAYBAR_CONFIG_DEST")
+                    print_success "Backup created at $BACKUP_FILE"
                     print_step "Updating waybar config.jsonc..."
                     cp "$WAYBAR_CONFIG_SRC" "$WAYBAR_CONFIG_DEST"
                     print_success "Waybar configuration updated"
@@ -1169,6 +1693,9 @@ if [ "$INSTALL_WAYBAR" = true ]; then
                 if cmp -s "$WAYBAR_STYLE_SRC" "$WAYBAR_STYLE_DEST"; then
                     print_skip "Waybar style already up to date"
                 else
+                    print_step "Backing up existing style.css..."
+                    BACKUP_FILE=$(create_backup "$WAYBAR_STYLE_DEST")
+                    print_success "Backup created at $BACKUP_FILE"
                     print_step "Updating waybar style.css..."
                     cp "$WAYBAR_STYLE_SRC" "$WAYBAR_STYLE_DEST"
                     print_success "Waybar style updated"
@@ -1178,6 +1705,9 @@ if [ "$INSTALL_WAYBAR" = true ]; then
                 if diff -q "$WAYBAR_STYLE_SRC" "$WAYBAR_STYLE_DEST" >/dev/null 2>&1; then
                     print_skip "Waybar style already up to date"
                 else
+                    print_step "Backing up existing style.css..."
+                    BACKUP_FILE=$(create_backup "$WAYBAR_STYLE_DEST")
+                    print_success "Backup created at $BACKUP_FILE"
                     print_step "Updating waybar style.css..."
                     cp "$WAYBAR_STYLE_SRC" "$WAYBAR_STYLE_DEST"
                     print_success "Waybar style updated"
