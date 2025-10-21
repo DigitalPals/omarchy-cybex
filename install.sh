@@ -147,7 +147,7 @@ show_usage() {
     echo -e "  ${GREEN}codex${NC}            Install OpenAI Codex CLI"
     echo -e "  ${GREEN}screensaver${NC}      Configure custom screensaver"
     echo -e "  ${GREEN}plymouth${NC}         Install Cybex Plymouth boot theme"
-    echo -e "  ${GREEN}prompt${NC}           Configure Starship prompt (alias: starship)"
+    echo -e "  ${GREEN}prompt${NC}           Configure Starship prompt, Fish-like tab completion, and autosuggestions (alias: starship)"
     echo -e "  ${GREEN}macos-keys${NC}       Configure macOS-style shortcuts (keyd + Alacritty)"
     echo -e "  ${GREEN}hyprland${NC}         Configure Hyprland bindings (alias: hyprland-bindings)"
     echo -e "  ${GREEN}auto-tile${NC}        Install Hyprland auto-tiling helper"
@@ -454,6 +454,99 @@ if [ "$UNINSTALL_MODE" = true ]; then
             fi
         else
             print_skip "Starship configuration not found"
+        fi
+
+        # Uninstall Fish-like tab completion
+        COMPLETION_DEST="$HOME/.inputrc"
+
+        if [ -f "$COMPLETION_DEST" ]; then
+            # Find most recent backup
+            BACKUP=$(ls -t "${COMPLETION_DEST}.bak."* 2>/dev/null | head -1)
+
+            if [ -n "$BACKUP" ]; then
+                print_step "Restoring .inputrc backup from $BACKUP..."
+                cp "$BACKUP" "$COMPLETION_DEST"
+                print_success "Tab completion configuration backup restored"
+            else
+                print_step "Removing Fish-like tab completion configuration..."
+                rm "$COMPLETION_DEST"
+                print_success "Tab completion configuration removed"
+            fi
+        else
+            print_skip "Tab completion configuration not found"
+        fi
+
+        # Uninstall ble.sh
+        BLERC_DEST="$HOME/.blerc"
+        BASHRC="$HOME/.bashrc"
+
+        # Remove ble.sh configuration
+        if [ -f "$BLERC_DEST" ]; then
+            BACKUP=$(ls -t "${BLERC_DEST}.bak."* 2>/dev/null | head -1)
+
+            if [ -n "$BACKUP" ]; then
+                print_step "Restoring .blerc backup from $BACKUP..."
+                cp "$BACKUP" "$BLERC_DEST"
+                print_success "ble.sh configuration backup restored"
+            else
+                print_step "Removing ble.sh configuration..."
+                rm "$BLERC_DEST"
+                print_success "ble.sh configuration removed"
+            fi
+        else
+            print_skip "ble.sh configuration not found"
+        fi
+
+        # Remove ble.sh from .bashrc
+        if [ -f "$BASHRC" ] && grep -q "blesh/ble.sh" "$BASHRC" 2>/dev/null; then
+            print_step "Removing ble.sh from .bashrc..."
+
+            # Find the most recent backup before ble.sh was added
+            BACKUP=$(ls -t "${BASHRC}.bak."* 2>/dev/null | grep -v "$(date +%Y%m%d)" | head -1)
+
+            if [ -n "$BACKUP" ]; then
+                print_step "Restoring .bashrc backup from $BACKUP..."
+                cp "$BACKUP" "$BASHRC"
+                print_success ".bashrc restored"
+            else
+                # Remove ble.sh lines manually
+                TEMP_BASHRC=$(mktemp)
+                grep -v "ble.sh" "$BASHRC" | grep -v "ble-attach" | grep -v "Bash Line Editor" > "$TEMP_BASHRC"
+                cp "$TEMP_BASHRC" "$BASHRC"
+                rm "$TEMP_BASHRC"
+                print_success "ble.sh references removed from .bashrc"
+            fi
+        else
+            print_skip "ble.sh not configured in .bashrc"
+        fi
+
+        # Optionally remove ble.sh package (ask user)
+        if [ -f "$HOME/.local/share/blesh/ble.sh" ]; then
+            echo -e "${YELLOW}ble.sh package is still installed.${NC}"
+            read -p "Remove ble.sh package? (y/N): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                AUR_HELPER=""
+                if command_exists yay; then
+                    AUR_HELPER="yay"
+                elif command_exists paru; then
+                    AUR_HELPER="paru"
+                elif command_exists pacaur; then
+                    AUR_HELPER="pacaur"
+                fi
+
+                if [ -n "$AUR_HELPER" ]; then
+                    print_step "Removing ble.sh package..."
+                    $AUR_HELPER -R --noconfirm blesh-git
+                    print_success "ble.sh package removed"
+                else
+                    print_step "Removing ble.sh manually..."
+                    rm -rf "$HOME/.local/share/blesh"
+                    print_success "ble.sh removed"
+                fi
+            else
+                print_skip "Keeping ble.sh package installed"
+            fi
         fi
     fi
 
@@ -1203,6 +1296,164 @@ if [ "$INSTALL_PROMPT" = true ]; then
             print_success "Starship prompt configured"
         fi
     fi
+
+    # Configure Fish-like tab completion
+    COMPLETION_SRC="$SCRIPT_DIR/config/bash/completion.inputrc"
+    COMPLETION_DEST="$HOME/.inputrc"
+
+    if [ ! -f "$COMPLETION_SRC" ]; then
+        print_error "Source completion.inputrc not found at $COMPLETION_SRC"
+        print_error "Skipping Fish-like tab completion configuration..."
+    else
+        if [ -f "$COMPLETION_DEST" ]; then
+            # Use diff if cmp is not available
+            if command_exists cmp; then
+                if cmp -s "$COMPLETION_SRC" "$COMPLETION_DEST"; then
+                    print_skip "Fish-like tab completion is already up to date"
+                else
+                    print_step "Backing up existing .inputrc..."
+                    BACKUP_FILE=$(create_backup "$COMPLETION_DEST")
+                    print_success "Backup created at $BACKUP_FILE"
+                    print_step "Updating .inputrc with Fish-like tab completion..."
+                    cp "$COMPLETION_SRC" "$COMPLETION_DEST"
+                    print_success "Fish-like tab completion configured"
+                fi
+            else
+                # Fallback to diff if cmp is not available
+                if diff -q "$COMPLETION_SRC" "$COMPLETION_DEST" >/dev/null 2>&1; then
+                    print_skip "Fish-like tab completion is already up to date"
+                else
+                    print_step "Backing up existing .inputrc..."
+                    BACKUP_FILE=$(create_backup "$COMPLETION_DEST")
+                    print_success "Backup created at $BACKUP_FILE"
+                    print_step "Updating .inputrc with Fish-like tab completion..."
+                    cp "$COMPLETION_SRC" "$COMPLETION_DEST"
+                    print_success "Fish-like tab completion configured"
+                fi
+            fi
+        else
+            print_step "Installing Fish-like tab completion to $COMPLETION_DEST..."
+            cp "$COMPLETION_SRC" "$COMPLETION_DEST"
+            print_success "Fish-like tab completion configured"
+        fi
+    fi
+
+    # Install and configure ble.sh for Fish-like autosuggestions
+    print_step "Checking for ble.sh (Fish-like autosuggestions)..."
+
+    # Check if ble.sh is already installed (check both system and local locations)
+    BLE_SH_PATH=""
+    if [ -f "/usr/share/blesh/ble.sh" ]; then
+        BLE_SH_PATH="/usr/share/blesh/ble.sh"
+        print_skip "ble.sh is already installed at $BLE_SH_PATH"
+    elif [ -f "$HOME/.local/share/blesh/ble.sh" ]; then
+        BLE_SH_PATH="$HOME/.local/share/blesh/ble.sh"
+        print_skip "ble.sh is already installed at $BLE_SH_PATH"
+    else
+        # Check for AUR helper
+        AUR_HELPER=""
+        if command_exists yay; then
+            AUR_HELPER="yay"
+        elif command_exists paru; then
+            AUR_HELPER="paru"
+        elif command_exists pacaur; then
+            AUR_HELPER="pacaur"
+        fi
+
+        if [ -z "$AUR_HELPER" ]; then
+            print_error "No AUR helper found (yay, paru, or pacaur required)"
+            print_error "Please install an AUR helper first to enable Fish-like autosuggestions"
+            print_error "Example: sudo pacman -S --needed git base-devel && git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si"
+        else
+            print_step "Installing ble.sh from AUR using $AUR_HELPER..."
+            $AUR_HELPER -S --noconfirm blesh-git
+            print_success "ble.sh installed"
+
+            # Set the path after installation
+            if [ -f "/usr/share/blesh/ble.sh" ]; then
+                BLE_SH_PATH="/usr/share/blesh/ble.sh"
+            elif [ -f "$HOME/.local/share/blesh/ble.sh" ]; then
+                BLE_SH_PATH="$HOME/.local/share/blesh/ble.sh"
+            fi
+        fi
+    fi
+
+    # Configure ble.sh
+    BLERC_SRC="$SCRIPT_DIR/config/bash/blerc"
+    BLERC_DEST="$HOME/.blerc"
+
+    if [ ! -f "$BLERC_SRC" ]; then
+        print_error "Source blerc not found at $BLERC_SRC"
+        print_error "Skipping ble.sh configuration..."
+    else
+        if [ -f "$BLERC_DEST" ]; then
+            if command_exists cmp; then
+                if cmp -s "$BLERC_SRC" "$BLERC_DEST"; then
+                    print_skip "ble.sh configuration is already up to date"
+                else
+                    print_step "Backing up existing .blerc..."
+                    BACKUP_FILE=$(create_backup "$BLERC_DEST")
+                    print_success "Backup created at $BACKUP_FILE"
+                    print_step "Updating .blerc..."
+                    cp "$BLERC_SRC" "$BLERC_DEST"
+                    print_success "ble.sh configuration updated"
+                fi
+            else
+                if diff -q "$BLERC_SRC" "$BLERC_DEST" >/dev/null 2>&1; then
+                    print_skip "ble.sh configuration is already up to date"
+                else
+                    print_step "Backing up existing .blerc..."
+                    BACKUP_FILE=$(create_backup "$BLERC_DEST")
+                    print_success "Backup created at $BACKUP_FILE"
+                    print_step "Updating .blerc..."
+                    cp "$BLERC_SRC" "$BLERC_DEST"
+                    print_success "ble.sh configuration updated"
+                fi
+            fi
+        else
+            print_step "Installing ble.sh configuration to $BLERC_DEST..."
+            cp "$BLERC_SRC" "$BLERC_DEST"
+            print_success "ble.sh configuration installed"
+        fi
+    fi
+
+    # Add ble.sh initialization to .bashrc
+    if [ -n "$BLE_SH_PATH" ]; then
+        BASHRC="$HOME/.bashrc"
+
+        # Check if ble.sh is already sourced
+        if grep -q "blesh/ble.sh" "$BASHRC" 2>/dev/null; then
+            print_skip "ble.sh already configured in .bashrc"
+        else
+            print_step "Adding ble.sh to .bashrc..."
+
+            # Create a temporary file with the new content
+            TEMP_BASHRC=$(mktemp)
+
+            # Add ble.sh source at the beginning with the detected path
+            cat > "$TEMP_BASHRC" << EOF
+# ble.sh - Bash Line Editor for Fish-like autosuggestions (Added by Omarchy)
+[[ \$- == *i* ]] && source $BLE_SH_PATH --attach=none
+
+EOF
+
+            # Append original .bashrc content
+            cat "$BASHRC" >> "$TEMP_BASHRC"
+
+            # Add ble-attach at the end
+            cat >> "$TEMP_BASHRC" << 'EOF'
+
+# Attach ble.sh (Added by Omarchy)
+[[ ! ${BLE_VERSION-} ]] || ble-attach
+EOF
+
+            # Backup and replace
+            BACKUP_FILE=$(create_backup "$BASHRC")
+            print_success "Backup created at $BACKUP_FILE"
+            mv "$TEMP_BASHRC" "$BASHRC"
+            print_success "ble.sh enabled in .bashrc"
+        fi
+    fi
 fi
 
 ################################################################################
@@ -1819,6 +2070,8 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
 
     if [ "$INSTALL_PROMPT" = true ]; then
         echo -e "  • Starship prompt configuration"
+        echo -e "  • Fish-like tab completion (menu-complete)"
+        echo -e "  • Fish-like autosuggestions (ble.sh)"
     fi
 
     if [ "$INSTALL_MACOS_KEYS" = true ]; then
@@ -1881,6 +2134,12 @@ if [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || \
     # PATH update reminder - show only if Claude or Codex were installed
     if [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ]; then
         echo -e "  • Run ${CYAN}source ~/.bashrc${NC} or restart your shell to update PATH"
+    fi
+
+    # Fish-like tab completion and autosuggestions reminder
+    if [ "$INSTALL_PROMPT" = true ]; then
+        echo -e "  • ${BOLD}Restart your shell${NC} to enable Fish-like tab completion and autosuggestions"
+        echo -e "    Or run: ${CYAN}exec bash${NC}"
     fi
 
     # Mainline kernel reboot reminder

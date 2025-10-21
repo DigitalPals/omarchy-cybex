@@ -1,0 +1,38 @@
+# Fish-like tab completion for Bash
+# This file adds menu-complete functionality similar to Fish shell's tab behavior
+#
+# When you press Tab:
+# - First press: completes the common prefix and shows all possible completions
+# - Subsequent presses: cycles through the completions one by one
+# - Shift+Tab: cycles backward through completions
+#
+# This configuration is loaded by the Omarchy install script when you run:
+#   ./install.sh prompt
+
+# Enable menu-complete cycling behavior
+# TAB cycles forward through completions
+TAB: menu-complete
+
+# Shift+TAB cycles backward through completions
+"\e[Z": menu-complete-backward
+
+# Show the common prefix first, then start cycling through matches
+# This ensures you see all options before cycling (more like Fish)
+set menu-complete-display-prefix on
+
+# Show completions immediately on first tab press (like Fish)
+# This works together with the settings in the main Omarchy inputrc
+set show-all-if-ambiguous on
+
+# If you want colored completions (Bash 4+)
+set colored-completion-prefix on
+set colored-stats on
+
+# Add file type indicators (like ls -F)
+set visible-stats on
+
+# Make completion case-insensitive (convenient for lazy typing)
+set completion-ignore-case on
+
+# Treat hyphens and underscores as equivalent for completion
+set completion-map-case on

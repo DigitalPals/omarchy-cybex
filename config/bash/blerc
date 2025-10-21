@@ -1,0 +1,37 @@
+# ble.sh configuration for Fish-like autosuggestions
+# This file is sourced by ble.sh during initialization
+# Installed by: ./install.sh prompt
+
+# Enable Fish-like autosuggestions (inline gray text as you type)
+bleopt complete_auto_complete=1
+
+# Delay before showing suggestions (milliseconds)
+bleopt complete_auto_delay=100
+
+# Enable history-based autosuggestions
+bleopt complete_auto_history=1
+
+# Enable syntax highlighting (colors commands as you type)
+bleopt highlight_syntax=1
+bleopt highlight_filename=1
+
+# Show suggestions in a subtle gray color
+ble-face -s auto_complete fg=242
+
+# Performance optimizations
+bleopt edit_abell=0  # Disable bell
+
+# History configuration
+bleopt history_share=1
+bleopt history_lazyload=1
+
+# Right arrow key accepts the suggestion
+# This is already the default behavior in ble.sh
+
+# Clean up prompt markers
+bleopt exec_errexit_mark=
+bleopt exec_elapsed_mark=
+
+# Note: Autosuggestions come from command history (like Fish shell)
+# To see files in the current directory, use TAB completion instead
+# TAB will show actual files and cycle through them
