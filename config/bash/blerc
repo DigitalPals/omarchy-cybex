@@ -15,8 +15,17 @@ bleopt complete_auto_history=1
 bleopt highlight_syntax=1
 bleopt highlight_filename=1
 
-# Show suggestions in a subtle gray color
-ble-face -s auto_complete fg=242
+# Show suggestions in a subtle gray color (no background)
+ble-face auto_complete='fg=242'
+
+# Remove background color from invalid commands (only show as red text, no bg)
+ble-face syntax_error='fg=red'
+
+# Improve completion menu contrast without relying on background colors
+ble-face menu_complete_match='fg=252,bold'   # highlight the typed prefix
+ble-face menu_complete_selected='fg=45,bold' # active item in bright cyan
+ble-face region='fg=45'                      # inserted completion (no reverse)
+ble-face region_insert='fg=45'
 
 # Performance optimizations
 bleopt edit_abell=0  # Disable bell
@@ -35,3 +44,16 @@ bleopt exec_elapsed_mark=
 # Note: Autosuggestions come from command history (like Fish shell)
 # To see files in the current directory, use TAB completion instead
 # TAB will show actual files and cycle through them
+
+# Boost directory/file colors so completion menus are easier to read
+if command -v dircolors >/dev/null 2>&1; then
+    eval "$(dircolors -b 2>/dev/null)"
+fi
+
+if [[ ${LS_COLORS-} ]]; then
+    LS_COLORS=${LS_COLORS//di=01;34/di=01;96} # brighter cyan for directories
+    LS_COLORS=${LS_COLORS//ln=01;36/ln=01;94} # brighten symlink color too
+else
+    LS_COLORS='di=01;96:ln=01;94:ex=01;32'
+fi
+export LS_COLORS
