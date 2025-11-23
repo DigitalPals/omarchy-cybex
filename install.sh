@@ -148,7 +148,6 @@ show_usage() {
     echo -e "  ${GREEN}screensaver${NC}      Configure custom screensaver"
     echo -e "  ${GREEN}plymouth${NC}         Install Cybex Plymouth boot theme"
     echo -e "  ${GREEN}prompt${NC}           Configure Starship prompt, Fish-like tab completion, and autosuggestions (alias: starship)"
-    echo -e "  ${GREEN}macos-keys${NC}       Configure macOS-style shortcuts (keyd + Alacritty)"
     echo -e "  ${GREEN}hyprland${NC}         Configure Hyprland bindings (alias: hyprland-bindings)"
     echo -e "  ${GREEN}auto-tile${NC}        Install Hyprland auto-tiling helper"
     echo -e "  ${GREEN}waycorner${NC}        Install and configure hot corners for Hyprland"
@@ -191,7 +190,6 @@ INSTALL_CODEX=false
 INSTALL_SCREENSAVER=false
 INSTALL_PLYMOUTH=false
 INSTALL_PROMPT=false
-INSTALL_MACOS_KEYS=false
 INSTALL_HYPRLAND_BINDINGS=false
 INSTALL_AUTO_TILE=false
 INSTALL_WAYCORNER=false
@@ -243,9 +241,6 @@ for arg in "$@"; do
         prompt|starship)
             INSTALL_PROMPT=true
             ;;
-        macos-keys)
-            INSTALL_MACOS_KEYS=true
-            ;;
         hyprland|hyprland-bindings)
             INSTALL_HYPRLAND_BINDINGS=true
             ;;
@@ -285,7 +280,6 @@ if [ "$INSTALL_ALL" = true ]; then
     INSTALL_SCREENSAVER=true
     INSTALL_PLYMOUTH=true
     INSTALL_PROMPT=true
-    # INSTALL_MACOS_KEYS=true  # Omarchy now includes macOS-key functionality by default
     INSTALL_HYPRLAND_BINDINGS=true
     INSTALL_AUTO_TILE=true
     INSTALL_WAYCORNER=true
@@ -550,45 +544,6 @@ if [ "$UNINSTALL_MODE" = true ]; then
         fi
     fi
 
-    # Uninstall macOS-style shortcuts
-    if [ "$INSTALL_MACOS_KEYS" = true ]; then
-        print_header "Removing macOS-style Shortcuts"
-
-        # Stop and disable keyd service
-        if sudo systemctl is-active --quiet keyd; then
-            print_step "Stopping keyd service..."
-            sudo systemctl stop keyd
-            print_success "keyd service stopped"
-        fi
-
-        if sudo systemctl is-enabled --quiet keyd 2>/dev/null; then
-            print_step "Disabling keyd service..."
-            sudo systemctl disable keyd
-            print_success "keyd service disabled"
-        fi
-
-        # Remove keyd configuration
-        if sudo test -f "/etc/keyd/default.conf"; then
-            print_step "Removing keyd configuration..."
-            sudo rm "/etc/keyd/default.conf"
-            print_success "keyd configuration removed"
-        fi
-
-        # Restore Alacritty configuration
-        ALACRITTY_DEST="$HOME/.config/alacritty/alacritty.toml"
-        if [ -f "$ALACRITTY_DEST" ]; then
-            BACKUP=$(ls -t "${ALACRITTY_DEST}.bak."* 2>/dev/null | head -1)
-
-            if [ -n "$BACKUP" ]; then
-                print_step "Restoring Alacritty backup from $BACKUP..."
-                cp "$BACKUP" "$ALACRITTY_DEST"
-                print_success "Alacritty configuration restored"
-            else
-                print_skip "No Alacritty backup found"
-            fi
-        fi
-    fi
-
     # Uninstall Hyprland bindings
     if [ "$INSTALL_HYPRLAND_BINDINGS" = true ]; then
         print_header "Removing Hyprland Configuration"
@@ -823,12 +778,12 @@ NEED_INTERNET=false
 NEED_DISK_SPACE=false
 
 # Components that require sudo
-if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || [ "$INSTALL_MACOS_KEYS" = true ] || [ "$INSTALL_AUTO_TILE" = true ]; then
+if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || [ "$INSTALL_AUTO_TILE" = true ]; then
     NEED_SUDO=true
 fi
 
 # Components that require internet
-if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_MACOS_KEYS" = true ] || [ "$INSTALL_AUTO_TILE" = true ] || [ "$INSTALL_WAYCORNER" = true ]; then
+if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_AUTO_TILE" = true ] || [ "$INSTALL_WAYCORNER" = true ]; then
     NEED_INTERNET=true
 fi
 
@@ -1457,112 +1412,7 @@ EOF
 fi
 
 ################################################################################
-# 7. Configure macOS-style Shortcuts
-################################################################################
-
-if [ "$INSTALL_MACOS_KEYS" = true ]; then
-    print_header "Configuring macOS-style Shortcuts"
-
-    # Ensure keyd package is installed
-    if package_installed "keyd"; then
-        print_skip "keyd package already installed"
-    else
-        print_step "Installing keyd..."
-        sudo pacman -S --noconfirm keyd
-        print_success "keyd installed"
-    fi
-
-    KEYD_CONFIG_SRC="$SCRIPT_DIR/config/keyd/macos_shortcuts.conf"
-    KEYD_CONFIG_DEST="/etc/keyd/default.conf"
-
-    if [ ! -f "$KEYD_CONFIG_SRC" ]; then
-        print_error "keyd config not found at $KEYD_CONFIG_SRC"
-    else
-        if sudo test -f "$KEYD_CONFIG_DEST"; then
-            if command_exists cmp; then
-                if sudo cmp -s "$KEYD_CONFIG_SRC" "$KEYD_CONFIG_DEST"; then
-                    print_skip "keyd configuration already up to date"
-                else
-                    print_step "Updating keyd configuration..."
-                    sudo install -D "$KEYD_CONFIG_SRC" "$KEYD_CONFIG_DEST"
-                    print_success "keyd configuration updated"
-                fi
-            else
-                if sudo diff -q "$KEYD_CONFIG_SRC" "$KEYD_CONFIG_DEST" >/dev/null 2>&1; then
-                    print_skip "keyd configuration already up to date"
-                else
-                    print_step "Updating keyd configuration..."
-                    sudo install -D "$KEYD_CONFIG_SRC" "$KEYD_CONFIG_DEST"
-                    print_success "keyd configuration updated"
-                fi
-            fi
-        else
-            print_step "Installing keyd configuration..."
-            sudo install -D "$KEYD_CONFIG_SRC" "$KEYD_CONFIG_DEST"
-            print_success "keyd configuration installed"
-        fi
-    fi
-
-    # Enable and start keyd service
-    print_step "Enabling and starting keyd service..."
-    if sudo systemctl enable --now keyd >/dev/null 2>&1; then
-        print_success "keyd service enabled and running"
-    else
-        print_error "Failed to enable/start keyd - please verify 'sudo systemctl status keyd'"
-    fi
-
-    if sudo systemctl is-active --quiet keyd; then
-        print_step "Reloading keyd to apply configuration..."
-        if sudo keyd reload >/dev/null 2>&1; then
-            print_success "keyd reloaded"
-        else
-            print_error "Failed to reload keyd - run 'sudo keyd reload' manually"
-        fi
-    fi
-
-    # Ensure Alacritty bindings are present
-    ALACRITTY_SRC="$SCRIPT_DIR/config/alacritty/alacritty.toml"
-    ALACRITTY_DEST="$HOME/.config/alacritty/alacritty.toml"
-
-    if [ ! -f "$ALACRITTY_SRC" ]; then
-        print_error "Alacritty config not found at $ALACRITTY_SRC"
-    else
-        mkdir -p "$(dirname "$ALACRITTY_DEST")"
-
-        if [ -f "$ALACRITTY_DEST" ]; then
-            if command_exists cmp; then
-                if cmp -s "$ALACRITTY_SRC" "$ALACRITTY_DEST"; then
-                    print_skip "Alacritty configuration already up to date"
-                else
-                    BACKUP_PATH="${ALACRITTY_DEST}.bak.$(date +%Y%m%d%H%M%S)"
-                    print_step "Backing up existing Alacritty config to $BACKUP_PATH..."
-                    cp "$ALACRITTY_DEST" "$BACKUP_PATH"
-                    print_step "Updating Alacritty configuration..."
-                    cp "$ALACRITTY_SRC" "$ALACRITTY_DEST"
-                    print_success "Alacritty configuration updated"
-                fi
-            else
-                if diff -q "$ALACRITTY_SRC" "$ALACRITTY_DEST" >/dev/null 2>&1; then
-                    print_skip "Alacritty configuration already up to date"
-                else
-                    BACKUP_PATH="${ALACRITTY_DEST}.bak.$(date +%Y%m%d%H%M%S)"
-                    print_step "Backing up existing Alacritty config to $BACKUP_PATH..."
-                    cp "$ALACRITTY_DEST" "$BACKUP_PATH"
-                    print_step "Updating Alacritty configuration..."
-                    cp "$ALACRITTY_SRC" "$ALACRITTY_DEST"
-                    print_success "Alacritty configuration updated"
-                fi
-            fi
-        else
-            print_step "Installing Alacritty configuration..."
-            cp "$ALACRITTY_SRC" "$ALACRITTY_DEST"
-            print_success "Alacritty configuration installed"
-        fi
-    fi
-fi
-
-################################################################################
-# 8. Generate SSH Key for GitHub
+# 7. Generate SSH Key for GitHub
 ################################################################################
 
 if [ "$INSTALL_SSH" = true ]; then
@@ -2037,7 +1887,7 @@ echo -e "${GREEN}All tasks completed successfully!${NC}\n"
 if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
    [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || \
    [ "$INSTALL_SCREENSAVER" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || \
-   [ "$INSTALL_PROMPT" = true ] || [ "$INSTALL_MACOS_KEYS" = true ] || \
+   [ "$INSTALL_PROMPT" = true ] || \
    [ "$INSTALL_HYPRLAND_BINDINGS" = true ] || [ "$INSTALL_AUTO_TILE" = true ] || \
    [ "$INSTALL_WAYCORNER" = true ] || [ "$INSTALL_WAYBAR" = true ] || \
    [ "$INSTALL_SSH" = true ]; then
@@ -2072,10 +1922,6 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
         echo -e "  • Starship prompt configuration"
         echo -e "  • Fish-like tab completion (menu-complete)"
         echo -e "  • Fish-like autosuggestions (ble.sh)"
-    fi
-
-    if [ "$INSTALL_MACOS_KEYS" = true ]; then
-        echo -e "  • macOS-style shortcuts (keyd + Alacritty)"
     fi
 
     if [ "$INSTALL_HYPRLAND_BINDINGS" = true ]; then
@@ -2127,7 +1973,7 @@ fi
 # Next steps section - only show if there are actual next steps
 if [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || \
    [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || \
-   [ "$INSTALL_MACOS_KEYS" = true ] || [ "$INSTALL_AUTO_TILE" = true ]; then
+   [ "$INSTALL_AUTO_TILE" = true ]; then
 
     echo -e "${BOLD}Next steps:${NC}"
 
@@ -2150,10 +1996,6 @@ if [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || \
     # Plymouth theme reboot reminder
     if [ "$INSTALL_PLYMOUTH" = true ]; then
         echo -e "  • Reboot to see the new Plymouth boot splash"
-    fi
-
-    if [ "$INSTALL_MACOS_KEYS" = true ]; then
-        echo -e "  • Reload Hyprland (${CYAN}hyprctl reload${NC}) and restart Alacritty to pick up the new shortcuts"
     fi
 
     if [ "$INSTALL_AUTO_TILE" = true ]; then
