@@ -117,7 +117,7 @@ Installs essential development tools:
 - **nano** - Text editor
 
 ### Claude Code
-Installs Anthropic's Claude Code CLI globally to `~/.local/bin`. Automatically adds the directory to your PATH if needed.
+Installs Anthropic's Claude Code CLI using the official installer (`curl -fsSL https://claude.ai/install.sh | bash`). The installer automatically updates your `~/.bashrc` with the necessary PATH configuration and reloads it.
 
 ### Codex CLI
 Installs OpenAI's Codex command-line interface for AI-assisted coding.
