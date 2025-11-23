@@ -12,7 +12,7 @@ Y$b,. .,,.    Q$$$$'   .$$$b.. .,d7' Q$&a,..,a&$P'  .d$$$PQ$$$b
 
 ## About
 
-A post-installation setup script for **Omarchy Linux** to fine-tune system settings and install personalized tools for John's workflow. This script is designed to be idempotent and safe to run multiple times.
+A post-installation setup script for **Omarchy Linux** (optimized for version 3.2+) to fine-tune system settings and install personalized tools for John's workflow. This script is designed to be idempotent and safe to run multiple times.
 
 ## Features
 
@@ -23,8 +23,7 @@ This script automates the installation and configuration of:
 - 💻 **Codex CLI** - OpenAI's Codex command-line interface
 - 🎨 **Custom Screensaver** - Personalized ASCII art screensaver
 - 🚀 **Plymouth Theme** - Cybex boot splash theme
-- ⭐ **Starship Prompt** - Modern, customized shell prompt
-- ⌨️  **macOS-style Shortcuts** - keyd remaps + Alacritty bindings for Super+C/V/A/Z
+- ⭐ **Starship Prompt** - Modern, customized shell prompt with Fish-like tab completion and autosuggestions
 - 🖥️  **Hyprland Bindings** - Custom application and window manager bindings
 - 🪟 **Auto-Tile Helper** - Automatically float first window per workspace, tile when second opens
 - 🖱️  **Hot Corners** - macOS-style hot corners for Hyprland via waycorner
@@ -34,10 +33,15 @@ This script automates the installation and configuration of:
 
 ## Prerequisites
 
-- **Omarchy Linux** installation
+- **Omarchy Linux 3.2+** installation
 - **sudo** privileges
 - **Internet connection** (for downloading packages)
 - At least **1GB free disk space** (for kernel installation)
+
+> **Note:** Omarchy 3.2 includes several features by default that were previously provided by this script:
+> - **Ghostty** is now the default terminal (with native splits and tabs support)
+> - **JetBrainsMono Nerd Font** is now the default font
+> - **macOS-style keyboard shortcuts** are built-in
 
 ## Quick Start
 
@@ -72,8 +76,7 @@ chmod +x install.sh
 | `codex` | Install OpenAI Codex CLI | - |
 | `screensaver` | Configure custom screensaver | - |
 | `plymouth` | Install Cybex Plymouth boot theme | - |
-| `prompt` | Configure Starship prompt | `starship` |
-| `macos-keys` | Configure keyd macOS-style shortcuts and Alacritty bindings | - |
+| `prompt` | Configure Starship prompt with Fish-like features | `starship` |
 | `hyprland` | Configure Hyprland bindings | `hyprland-bindings` |
 | `auto-tile` | Install Hyprland auto-tiling helper | - |
 | `waycorner` | Install and configure hot corners for Hyprland | - |
@@ -95,9 +98,6 @@ chmod +x install.sh
 
 # Configure Starship prompt and install Codex
 ./install.sh prompt codex
-
-# Configure macOS-style shortcuts (keyd + Alacritty)
-./install.sh macos-keys
 
 # Install Hyprland auto-tile helper
 ./install.sh auto-tile
@@ -134,9 +134,8 @@ Configures a modern, informative shell prompt with:
 - Language version detection (Node.js, Python, Java, PHP)
 - Directory path display
 - Custom styling
-
-### macOS-style Shortcuts
-Installs and configures keyd plus updated Alacritty bindings so `SUPER+C/V/A/Z` behave like macOS while all Hyprland shortcuts keep working.
+- Fish-like tab completion (menu-complete)
+- Fish-like autosuggestions (ble.sh)
 
 ### Hyprland Bindings
 Deploys custom Hyprland key bindings to `~/.config/hypr/bindings.conf`. Includes application shortcuts (terminal, browser, file manager) and window management keybindings.
@@ -179,24 +178,6 @@ Installs the latest mainline Linux kernel from Chaotic-AUR. Automatically config
 - 🌐 **Internet required** - Most components require downloading packages
 - 🔄 **Reboot needed** - Mainline kernel and Plymouth theme require a reboot
 - 📁 **PATH updates** - After installing Claude/Codex, run `source ~/.bashrc` or restart your shell
-
-## macOS-style Shortcuts (keyd)
-
-Get global macOS-style shortcuts (`SUPER+C/V/A/Z`) while keeping Hyprland bindings such as `SUPER+ENTER`:
-
-```bash
-./install.sh macos-keys
-```
-
-This target:
-- Installs `keyd` if necessary and deploys `keyd/macos_shortcuts.conf` to `/etc/keyd/default.conf`
-- Enables and reloads the `keyd` service so the remap is active immediately
-- Installs the curated `alacritty/alacritty.toml`, backing up your existing file the first time so Alacritty maps `CTRL+Insert`/`Shift+Insert` to copy/paste
-
-After the script finishes:
-- Reload Hyprland (`hyprctl reload`) and relaunch Alacritty to pick up the new bindings.
-- Test `SUPER+C/V/A/Z` in Chromium or another GUI app, and in Alacritty to confirm copy/paste works without sending SIGINT.
-- Use `sudo keyd -m` if you want to inspect the translated key events in real time.
 
 ## Post-Installation
 
