@@ -992,51 +992,42 @@ fi
 if [ "$INSTALL_CLAUDE" = true ]; then
     print_header "Installing Claude Code"
 
-    # Check Node.js is available and version
-    print_step "Checking Node.js version..."
-    if ! command_exists node; then
-        print_error "Node.js is not installed but should be available with npm package"
-        print_error "Please ensure Node.js is installed"
-        exit 1
-    fi
-
-    NODE_VERSION=$(node --version 2>/dev/null | sed 's/v//')
-    NODE_MAJOR=$(echo "$NODE_VERSION" | cut -d. -f1)
-    if [ "$NODE_MAJOR" -lt 14 ]; then
-        print_error "Node.js version $NODE_VERSION is too old. Minimum required: v14.0.0"
-        exit 1
-    fi
-    print_success "Node.js $NODE_VERSION detected"
-
-    # Ensure ~/.local/bin exists
-    mkdir -p "$HOME/.local/bin"
-
     if command_exists claude; then
-        print_step "Updating Claude Code to latest version..."
-        npm install -g @anthropic-ai/claude-code --prefix "$HOME/.local"
-        print_success "Claude Code updated"
+        print_skip "Claude Code is already installed"
+        CLAUDE_VERSION=$(claude --version 2>/dev/null || echo "unknown")
+        print_step "Current version: $CLAUDE_VERSION"
     else
-        print_step "Installing Claude Code globally..."
-        npm install -g @anthropic-ai/claude-code --prefix "$HOME/.local"
-        print_success "Claude Code installed"
+        print_step "Installing Claude Code using official installer..."
+
+        # Download and run the official installer
+        if curl -fsSL https://claude.ai/install.sh | bash; then
+            print_success "Claude Code installed successfully"
+        else
+            print_error "Failed to install Claude Code"
+            print_error "Please try running manually: curl -fsSL https://claude.ai/install.sh | bash"
+            exit 1
+        fi
     fi
 
-    # Add ~/.local/bin to PATH if not already present in .bashrc
-    # More flexible pattern matching for existing PATH entries
-    if ! grep -qE '(\.local/bin|HOME/.local/bin)' "$HOME/.bashrc" 2>/dev/null; then
-        print_step "Adding ~/.local/bin to PATH in .bashrc..."
-        echo '' >> "$HOME/.bashrc"
-        echo '# Added by Omarchy post-install script' >> "$HOME/.bashrc"
-        echo 'export PATH=$HOME/.local/bin:$PATH' >> "$HOME/.bashrc"
-        print_success "PATH updated in .bashrc"
-
-        # Update current PATH if not already present
-        if ! echo "$PATH" | grep -q "$HOME/.local/bin"; then
-            export PATH="$HOME/.local/bin:$PATH"
-            print_step "PATH updated for current session"
-        fi
+    # Reload bashrc to update PATH
+    print_step "Reloading .bashrc to update PATH..."
+    if [ -f "$HOME/.bashrc" ]; then
+        # Source bashrc for current session
+        set +e  # Temporarily disable exit on error
+        source "$HOME/.bashrc" 2>/dev/null
+        set -e  # Re-enable exit on error
+        print_success "PATH updated for current session"
     else
-        print_skip "PATH already configured in .bashrc"
+        print_error ".bashrc not found - you may need to manually update your PATH"
+    fi
+
+    # Verify installation
+    if command_exists claude; then
+        CLAUDE_VERSION=$(claude --version 2>/dev/null || echo "installed")
+        print_success "Claude Code is ready to use (version: $CLAUDE_VERSION)"
+    else
+        print_error "Claude Code installation completed but 'claude' command not found in PATH"
+        print_error "You may need to restart your shell or manually add Claude to your PATH"
     fi
 fi
 
