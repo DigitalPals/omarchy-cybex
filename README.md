@@ -23,7 +23,7 @@ This script automates the installation and configuration of:
 - 💻 **Codex CLI** - OpenAI's Codex command-line interface
 - 🎨 **Custom Screensaver** - Personalized ASCII art screensaver
 - 🚀 **Plymouth Theme** - Cybex boot splash theme
-- ⭐ **Starship Prompt** - Modern, customized shell prompt with Fish-like tab completion and autosuggestions
+- 🐟 **Fish Shell** - Modern shell with Starship prompt, autosuggestions, and syntax highlighting (via omarchy-fish)
 - 🖥️  **Hyprland Bindings** - Custom application and window manager bindings
 - 🪟 **Auto-Tile Helper** - Automatically float first window per workspace, tile when second opens
 - 🖱️  **Hot Corners** - macOS-style hot corners for Hyprland via waycorner
@@ -57,7 +57,7 @@ chmod +x install.sh
 ./install.sh all
 
 # Or install specific components
-./install.sh claude ssh starship
+./install.sh claude ssh fish
 ```
 
 ## Usage
@@ -76,7 +76,7 @@ chmod +x install.sh
 | `codex` | Install OpenAI Codex CLI | - |
 | `screensaver` | Configure custom screensaver | - |
 | `plymouth` | Install Cybex Plymouth boot theme | - |
-| `prompt` | Configure Starship prompt with Fish-like features | `starship` |
+| `fish` | Install Fish shell with Starship prompt (via omarchy-fish) | - |
 | `hyprland` | Configure Hyprland bindings | `hyprland-bindings` |
 | `auto-tile` | Install Hyprland auto-tiling helper | - |
 | `waycorner` | Install and configure hot corners for Hyprland | - |
@@ -96,8 +96,8 @@ chmod +x install.sh
 # Install Claude Code and generate SSH key
 ./install.sh claude ssh
 
-# Configure Starship prompt and install Codex
-./install.sh prompt codex
+# Install Fish shell and Codex CLI
+./install.sh fish codex
 
 # Install Hyprland auto-tile helper
 ./install.sh auto-tile
@@ -128,14 +128,15 @@ Deploys a personalized ASCII art screensaver to `~/.config/omarchy/branding/scre
 ### Plymouth Theme (Cybex)
 Installs the Cybex boot splash theme and rebuilds the initramfs. **Requires reboot** to take effect.
 
-### Starship Prompt
-Configures a modern, informative shell prompt with:
-- Git status indicators
-- Language version detection (Node.js, Python, Java, PHP)
-- Directory path display
-- Custom styling
-- Fish-like tab completion (menu-complete)
-- Fish-like autosuggestions (ble.sh)
+### Fish Shell
+Installs the Fish shell via the omarchy-fish package with:
+- **Native Fish features**: Autosuggestions, syntax highlighting, and smart completions
+- **Starship prompt**: Beautiful, informative prompt with git status, language versions, and custom styling
+- **fzf integration**: Fast fuzzy finding with keybindings (Ctrl+R for history, Ctrl+Alt+F for directories)
+- **Smart navigation**: zoxide for intelligent directory jumping, eza for enhanced file listing
+- **Omarchy compatibility**: Maintains bash as login shell for system compatibility while auto-launching Fish in terminals
+
+The configuration preserves your existing Starship prompt settings and adds Fish-specific enhancements.
 
 ### Hyprland Bindings
 Deploys custom Hyprland key bindings to `~/.config/hypr/bindings.conf`. Includes application shortcuts (terminal, browser, file manager) and window management keybindings.

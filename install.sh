@@ -147,12 +147,13 @@ show_usage() {
     echo -e "  ${GREEN}codex${NC}            Install OpenAI Codex CLI"
     echo -e "  ${GREEN}screensaver${NC}      Configure custom screensaver"
     echo -e "  ${GREEN}plymouth${NC}         Install Cybex Plymouth boot theme"
-    echo -e "  ${GREEN}prompt${NC}           Configure Starship prompt, Fish-like tab completion, and autosuggestions (alias: starship)"
+    echo -e "  ${GREEN}fish${NC}             Install Fish shell with Starship prompt (via omarchy-fish)"
     echo -e "  ${GREEN}hyprland${NC}         Configure Hyprland bindings (alias: hyprland-bindings)"
     echo -e "  ${GREEN}auto-tile${NC}        Install Hyprland auto-tiling helper"
     echo -e "  ${GREEN}waycorner${NC}        Install and configure hot corners for Hyprland"
     echo -e "  ${GREEN}waybar${NC}           Configure Waybar idle toggle indicator"
     echo -e "  ${GREEN}ssh${NC}              Generate SSH key for GitHub (alias: ssh-key)"
+    echo -e "  ${GREEN}brave${NC}            Install Brave browser and set as default"
     echo -e "  ${GREEN}mainline${NC}         Install and configure mainline kernel (Chaotic-AUR)"
     echo ""
     echo -e "${BOLD}UNINSTALL:${NC}"
@@ -163,7 +164,7 @@ show_usage() {
     echo -e "  $0 all                    # Install everything except mainline kernel"
     echo -e "  $0 claude ssh             # Install Claude Code and generate SSH key"
     echo -e "  $0 mainline               # Only configure mainline kernel"
-    echo -e "  $0 prompt codex           # Configure Starship prompt and install Codex CLI"
+    echo -e "  $0 fish codex             # Install Fish shell and Codex CLI"
     echo -e "  $0 uninstall auto-tile    # Remove auto-tile helper"
     echo -e "  $0 uninstall all          # Remove all installed components"
     echo ""
@@ -189,12 +190,13 @@ INSTALL_CLAUDE=false
 INSTALL_CODEX=false
 INSTALL_SCREENSAVER=false
 INSTALL_PLYMOUTH=false
-INSTALL_PROMPT=false
+INSTALL_FISH=false
 INSTALL_HYPRLAND_BINDINGS=false
 INSTALL_AUTO_TILE=false
 INSTALL_WAYCORNER=false
 INSTALL_WAYBAR=false
 INSTALL_SSH=false
+INSTALL_BRAVE=false
 INSTALL_MAINLINE=false
 
 # Show help if no arguments provided
@@ -238,8 +240,8 @@ for arg in "$@"; do
         plymouth)
             INSTALL_PLYMOUTH=true
             ;;
-        prompt|starship)
-            INSTALL_PROMPT=true
+        fish)
+            INSTALL_FISH=true
             ;;
         hyprland|hyprland-bindings)
             INSTALL_HYPRLAND_BINDINGS=true
@@ -260,6 +262,9 @@ for arg in "$@"; do
             fi
             INSTALL_SSH=true
             ;;
+        brave)
+            INSTALL_BRAVE=true
+            ;;
         mainline)
             INSTALL_MAINLINE=true
             ;;
@@ -279,12 +284,13 @@ if [ "$INSTALL_ALL" = true ]; then
     INSTALL_CODEX=true
     INSTALL_SCREENSAVER=true
     INSTALL_PLYMOUTH=true
-    INSTALL_PROMPT=true
+    INSTALL_FISH=true
     INSTALL_HYPRLAND_BINDINGS=true
     INSTALL_AUTO_TILE=true
     INSTALL_WAYCORNER=true
     INSTALL_WAYBAR=true
     INSTALL_SSH=true
+    INSTALL_BRAVE=true
 fi
 
 ################################################################################
@@ -427,18 +433,45 @@ if [ "$UNINSTALL_MODE" = true ]; then
         fi
     fi
 
-    # Uninstall Starship prompt
-    if [ "$INSTALL_PROMPT" = true ]; then
-        print_header "Removing Starship Configuration"
+    # Uninstall Fish shell configuration
+    if [ "$INSTALL_FISH" = true ]; then
+        print_header "Removing Fish Shell Configuration"
 
+        # Remove omarchy-fish package
+        if package_installed "omarchy-fish"; then
+            echo -e "${YELLOW}Warning: This will remove omarchy-fish and restore bash as your shell.${NC}"
+            read -p "Are you sure you want to continue? (y/N): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                print_step "Removing omarchy-fish package..."
+                sudo pacman -R --noconfirm omarchy-fish
+                print_success "omarchy-fish removed"
+
+                # Restore bash backup created by omarchy-setup-fish
+                BASHRC="$HOME/.bashrc"
+                BASHRC_BACKUP=$(ls -t "${BASHRC}.backup-"* 2>/dev/null | head -1)
+
+                if [ -n "$BASHRC_BACKUP" ]; then
+                    print_step "Restoring .bashrc backup from omarchy-setup-fish..."
+                    cp "$BASHRC_BACKUP" "$BASHRC"
+                    print_success ".bashrc restored"
+                else
+                    print_skip "No .bashrc backup found from omarchy-setup-fish"
+                fi
+            else
+                print_skip "Skipping omarchy-fish removal"
+            fi
+        else
+            print_skip "omarchy-fish package is not installed"
+        fi
+
+        # Restore Starship configuration
         STARSHIP_DEST="$HOME/.config/starship.toml"
-
         if [ -f "$STARSHIP_DEST" ]; then
-            # Find most recent backup
             BACKUP=$(ls -t "${STARSHIP_DEST}.bak."* 2>/dev/null | head -1)
 
             if [ -n "$BACKUP" ]; then
-                print_step "Restoring backup from $BACKUP..."
+                print_step "Restoring Starship backup from $BACKUP..."
                 cp "$BACKUP" "$STARSHIP_DEST"
                 print_success "Starship configuration backup restored"
             else
@@ -450,97 +483,22 @@ if [ "$UNINSTALL_MODE" = true ]; then
             print_skip "Starship configuration not found"
         fi
 
-        # Uninstall Fish-like tab completion
-        COMPLETION_DEST="$HOME/.inputrc"
-
-        if [ -f "$COMPLETION_DEST" ]; then
-            # Find most recent backup
-            BACKUP=$(ls -t "${COMPLETION_DEST}.bak."* 2>/dev/null | head -1)
+        # Remove Fish config
+        FISH_CONFIG="$HOME/.config/fish/config.fish"
+        if [ -f "$FISH_CONFIG" ]; then
+            BACKUP=$(ls -t "${FISH_CONFIG}.bak."* 2>/dev/null | head -1)
 
             if [ -n "$BACKUP" ]; then
-                print_step "Restoring .inputrc backup from $BACKUP..."
-                cp "$BACKUP" "$COMPLETION_DEST"
-                print_success "Tab completion configuration backup restored"
+                print_step "Restoring Fish config backup from $BACKUP..."
+                cp "$BACKUP" "$FISH_CONFIG"
+                print_success "Fish configuration backup restored"
             else
-                print_step "Removing Fish-like tab completion configuration..."
-                rm "$COMPLETION_DEST"
-                print_success "Tab completion configuration removed"
+                print_step "Removing Fish configuration..."
+                rm "$FISH_CONFIG"
+                print_success "Fish configuration removed"
             fi
         else
-            print_skip "Tab completion configuration not found"
-        fi
-
-        # Uninstall ble.sh
-        BLERC_DEST="$HOME/.blerc"
-        BASHRC="$HOME/.bashrc"
-
-        # Remove ble.sh configuration
-        if [ -f "$BLERC_DEST" ]; then
-            BACKUP=$(ls -t "${BLERC_DEST}.bak."* 2>/dev/null | head -1)
-
-            if [ -n "$BACKUP" ]; then
-                print_step "Restoring .blerc backup from $BACKUP..."
-                cp "$BACKUP" "$BLERC_DEST"
-                print_success "ble.sh configuration backup restored"
-            else
-                print_step "Removing ble.sh configuration..."
-                rm "$BLERC_DEST"
-                print_success "ble.sh configuration removed"
-            fi
-        else
-            print_skip "ble.sh configuration not found"
-        fi
-
-        # Remove ble.sh from .bashrc
-        if [ -f "$BASHRC" ] && grep -q "blesh/ble.sh" "$BASHRC" 2>/dev/null; then
-            print_step "Removing ble.sh from .bashrc..."
-
-            # Find the most recent backup before ble.sh was added
-            BACKUP=$(ls -t "${BASHRC}.bak."* 2>/dev/null | grep -v "$(date +%Y%m%d)" | head -1)
-
-            if [ -n "$BACKUP" ]; then
-                print_step "Restoring .bashrc backup from $BACKUP..."
-                cp "$BACKUP" "$BASHRC"
-                print_success ".bashrc restored"
-            else
-                # Remove ble.sh lines manually
-                TEMP_BASHRC=$(mktemp)
-                grep -v "ble.sh" "$BASHRC" | grep -v "ble-attach" | grep -v "Bash Line Editor" > "$TEMP_BASHRC"
-                cp "$TEMP_BASHRC" "$BASHRC"
-                rm "$TEMP_BASHRC"
-                print_success "ble.sh references removed from .bashrc"
-            fi
-        else
-            print_skip "ble.sh not configured in .bashrc"
-        fi
-
-        # Optionally remove ble.sh package (ask user)
-        if [ -f "$HOME/.local/share/blesh/ble.sh" ]; then
-            echo -e "${YELLOW}ble.sh package is still installed.${NC}"
-            read -p "Remove ble.sh package? (y/N): " -n 1 -r
-            echo
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                AUR_HELPER=""
-                if command_exists yay; then
-                    AUR_HELPER="yay"
-                elif command_exists paru; then
-                    AUR_HELPER="paru"
-                elif command_exists pacaur; then
-                    AUR_HELPER="pacaur"
-                fi
-
-                if [ -n "$AUR_HELPER" ]; then
-                    print_step "Removing ble.sh package..."
-                    $AUR_HELPER -R --noconfirm blesh-git
-                    print_success "ble.sh package removed"
-                else
-                    print_step "Removing ble.sh manually..."
-                    rm -rf "$HOME/.local/share/blesh"
-                    print_success "ble.sh removed"
-                fi
-            else
-                print_skip "Keeping ble.sh package installed"
-            fi
+            print_skip "Fish configuration not found"
         fi
     fi
 
@@ -712,6 +670,44 @@ if [ "$UNINSTALL_MODE" = true ]; then
         fi
     fi
 
+    # Uninstall Brave browser
+    if [ "$INSTALL_BRAVE" = true ]; then
+        print_header "Uninstalling Brave Browser"
+
+        if package_installed "brave-bin"; then
+            echo -e "${YELLOW}Warning: This will remove Brave browser.${NC}"
+            read -p "Are you sure you want to continue? (y/N): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                print_step "Removing brave-bin package..."
+                sudo pacman -R --noconfirm brave-bin
+                print_success "Brave browser removed"
+            else
+                print_skip "Skipping Brave removal"
+            fi
+        else
+            print_skip "Brave browser is not installed"
+        fi
+
+        # Remove BROWSER=brave from uwsm default file
+        UWSM_DEFAULT="$HOME/.config/uwsm/default"
+        if [ -f "$UWSM_DEFAULT" ]; then
+            if grep -q "^export BROWSER=brave" "$UWSM_DEFAULT" 2>/dev/null; then
+                print_step "Removing BROWSER setting from uwsm default..."
+                # Create backup first
+                BACKUP_FILE=$(create_backup "$UWSM_DEFAULT")
+                if [ -n "$BACKUP_FILE" ]; then
+                    print_success "Backup created at $BACKUP_FILE"
+                fi
+                # Remove the BROWSER=brave line
+                sed -i '/^export BROWSER=brave/d' "$UWSM_DEFAULT"
+                print_success "BROWSER setting removed from uwsm default"
+            else
+                print_skip "BROWSER setting not found in uwsm default"
+            fi
+        fi
+    fi
+
     # Uninstall mainline kernel
     if [ "$INSTALL_MAINLINE" = true ]; then
         print_header "Uninstalling Mainline Kernel"
@@ -778,12 +774,12 @@ NEED_INTERNET=false
 NEED_DISK_SPACE=false
 
 # Components that require sudo
-if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || [ "$INSTALL_AUTO_TILE" = true ]; then
+if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || [ "$INSTALL_AUTO_TILE" = true ] || [ "$INSTALL_BRAVE" = true ]; then
     NEED_SUDO=true
 fi
 
 # Components that require internet
-if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_AUTO_TILE" = true ] || [ "$INSTALL_WAYCORNER" = true ]; then
+if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_AUTO_TILE" = true ] || [ "$INSTALL_WAYCORNER" = true ] || [ "$INSTALL_BRAVE" = true ]; then
     NEED_INTERNET=true
 fi
 
@@ -1194,12 +1190,37 @@ if [ "$INSTALL_PLYMOUTH" = true ]; then
 fi
 
 ################################################################################
-# 6. Configure Starship Prompt
+# 6. Install Fish Shell with Starship Prompt
 ################################################################################
 
-if [ "$INSTALL_PROMPT" = true ]; then
-    print_header "Configuring Starship Prompt"
+if [ "$INSTALL_FISH" = true ]; then
+    print_header "Installing Fish Shell"
 
+    # Install omarchy-fish package
+    if package_installed "omarchy-fish"; then
+        print_skip "omarchy-fish package already installed"
+    else
+        print_step "Installing omarchy-fish package..."
+        sudo pacman -S --needed --noconfirm omarchy-fish
+        print_success "omarchy-fish package installed"
+    fi
+
+    # Run omarchy-setup-fish to configure bash→Fish transition
+    # This creates a backup of .bashrc and sets up auto-launch of Fish from bash
+    if grep -q "exec fish" "$HOME/.bashrc" 2>/dev/null || grep -q "fish" "$HOME/.bashrc" 2>/dev/null; then
+        print_skip "Fish shell auto-launch already configured in .bashrc"
+    else
+        print_step "Configuring Fish shell auto-launch..."
+        if command_exists omarchy-setup-fish; then
+            omarchy-setup-fish
+            print_success "Fish shell configured (bash will auto-launch Fish)"
+        else
+            print_error "omarchy-setup-fish command not found"
+            print_error "Fish shell may not launch automatically from bash"
+        fi
+    fi
+
+    # Configure Starship prompt
     STARSHIP_SRC="$SCRIPT_DIR/config/starship/starship.toml"
     STARSHIP_DEST="$HOME/.config/starship.toml"
 
@@ -1207,11 +1228,9 @@ if [ "$INSTALL_PROMPT" = true ]; then
         print_error "Source starship.toml not found at $STARSHIP_SRC"
         print_error "Skipping Starship configuration..."
     else
-        # Create destination directory if it doesn't exist
         mkdir -p "$(dirname "$STARSHIP_DEST")"
 
         if [ -f "$STARSHIP_DEST" ]; then
-            # Use diff if cmp is not available
             if command_exists cmp; then
                 if cmp -s "$STARSHIP_SRC" "$STARSHIP_DEST"; then
                     print_skip "Starship configuration is already up to date"
@@ -1224,7 +1243,6 @@ if [ "$INSTALL_PROMPT" = true ]; then
                     print_success "Starship configuration updated"
                 fi
             else
-                # Fallback to diff if cmp is not available
                 if diff -q "$STARSHIP_SRC" "$STARSHIP_DEST" >/dev/null 2>&1; then
                     print_skip "Starship configuration is already up to date"
                 else
@@ -1243,163 +1261,54 @@ if [ "$INSTALL_PROMPT" = true ]; then
         fi
     fi
 
-    # Configure Fish-like tab completion
-    COMPLETION_SRC="$SCRIPT_DIR/config/bash/completion.inputrc"
-    COMPLETION_DEST="$HOME/.inputrc"
+    # Configure Fish shell with custom config
+    FISH_CONFIG_SRC="$SCRIPT_DIR/config/fish/config.fish"
+    FISH_CONFIG_DEST="$HOME/.config/fish/config.fish"
 
-    if [ ! -f "$COMPLETION_SRC" ]; then
-        print_error "Source completion.inputrc not found at $COMPLETION_SRC"
-        print_error "Skipping Fish-like tab completion configuration..."
+    if [ ! -f "$FISH_CONFIG_SRC" ]; then
+        print_error "Source config.fish not found at $FISH_CONFIG_SRC"
+        print_error "Skipping Fish configuration..."
     else
-        if [ -f "$COMPLETION_DEST" ]; then
-            # Use diff if cmp is not available
+        mkdir -p "$(dirname "$FISH_CONFIG_DEST")"
+
+        if [ -f "$FISH_CONFIG_DEST" ]; then
             if command_exists cmp; then
-                if cmp -s "$COMPLETION_SRC" "$COMPLETION_DEST"; then
-                    print_skip "Fish-like tab completion is already up to date"
+                if cmp -s "$FISH_CONFIG_SRC" "$FISH_CONFIG_DEST"; then
+                    print_skip "Fish configuration is already up to date"
                 else
-                    print_step "Backing up existing .inputrc..."
-                    BACKUP_FILE=$(create_backup "$COMPLETION_DEST")
+                    print_step "Backing up existing config.fish..."
+                    BACKUP_FILE=$(create_backup "$FISH_CONFIG_DEST")
                     print_success "Backup created at $BACKUP_FILE"
-                    print_step "Updating .inputrc with Fish-like tab completion..."
-                    cp "$COMPLETION_SRC" "$COMPLETION_DEST"
-                    print_success "Fish-like tab completion configured"
+                    print_step "Updating config.fish..."
+                    cp "$FISH_CONFIG_SRC" "$FISH_CONFIG_DEST"
+                    print_success "Fish configuration updated"
                 fi
             else
-                # Fallback to diff if cmp is not available
-                if diff -q "$COMPLETION_SRC" "$COMPLETION_DEST" >/dev/null 2>&1; then
-                    print_skip "Fish-like tab completion is already up to date"
+                if diff -q "$FISH_CONFIG_SRC" "$FISH_CONFIG_DEST" >/dev/null 2>&1; then
+                    print_skip "Fish configuration is already up to date"
                 else
-                    print_step "Backing up existing .inputrc..."
-                    BACKUP_FILE=$(create_backup "$COMPLETION_DEST")
+                    print_step "Backing up existing config.fish..."
+                    BACKUP_FILE=$(create_backup "$FISH_CONFIG_DEST")
                     print_success "Backup created at $BACKUP_FILE"
-                    print_step "Updating .inputrc with Fish-like tab completion..."
-                    cp "$COMPLETION_SRC" "$COMPLETION_DEST"
-                    print_success "Fish-like tab completion configured"
+                    print_step "Updating config.fish..."
+                    cp "$FISH_CONFIG_SRC" "$FISH_CONFIG_DEST"
+                    print_success "Fish configuration updated"
                 fi
             fi
         else
-            print_step "Installing Fish-like tab completion to $COMPLETION_DEST..."
-            cp "$COMPLETION_SRC" "$COMPLETION_DEST"
-            print_success "Fish-like tab completion configured"
+            print_step "Installing Fish configuration to $FISH_CONFIG_DEST..."
+            cp "$FISH_CONFIG_SRC" "$FISH_CONFIG_DEST"
+            print_success "Fish shell configured"
         fi
     fi
 
-    # Install and configure ble.sh for Fish-like autosuggestions
-    print_step "Checking for ble.sh (Fish-like autosuggestions)..."
-
-    # Check if ble.sh is already installed (check both system and local locations)
-    BLE_SH_PATH=""
-    if [ -f "/usr/share/blesh/ble.sh" ]; then
-        BLE_SH_PATH="/usr/share/blesh/ble.sh"
-        print_skip "ble.sh is already installed at $BLE_SH_PATH"
-    elif [ -f "$HOME/.local/share/blesh/ble.sh" ]; then
-        BLE_SH_PATH="$HOME/.local/share/blesh/ble.sh"
-        print_skip "ble.sh is already installed at $BLE_SH_PATH"
-    else
-        # Check for AUR helper
-        AUR_HELPER=""
-        if command_exists yay; then
-            AUR_HELPER="yay"
-        elif command_exists paru; then
-            AUR_HELPER="paru"
-        elif command_exists pacaur; then
-            AUR_HELPER="pacaur"
-        fi
-
-        if [ -z "$AUR_HELPER" ]; then
-            print_error "No AUR helper found (yay, paru, or pacaur required)"
-            print_error "Please install an AUR helper first to enable Fish-like autosuggestions"
-            print_error "Example: sudo pacman -S --needed git base-devel && git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si"
-        else
-            print_step "Installing ble.sh from AUR using $AUR_HELPER..."
-            $AUR_HELPER -S --noconfirm blesh-git
-            print_success "ble.sh installed"
-
-            # Set the path after installation
-            if [ -f "/usr/share/blesh/ble.sh" ]; then
-                BLE_SH_PATH="/usr/share/blesh/ble.sh"
-            elif [ -f "$HOME/.local/share/blesh/ble.sh" ]; then
-                BLE_SH_PATH="$HOME/.local/share/blesh/ble.sh"
-            fi
-        fi
-    fi
-
-    # Configure ble.sh
-    BLERC_SRC="$SCRIPT_DIR/config/bash/blerc"
-    BLERC_DEST="$HOME/.blerc"
-
-    if [ ! -f "$BLERC_SRC" ]; then
-        print_error "Source blerc not found at $BLERC_SRC"
-        print_error "Skipping ble.sh configuration..."
-    else
-        if [ -f "$BLERC_DEST" ]; then
-            if command_exists cmp; then
-                if cmp -s "$BLERC_SRC" "$BLERC_DEST"; then
-                    print_skip "ble.sh configuration is already up to date"
-                else
-                    print_step "Backing up existing .blerc..."
-                    BACKUP_FILE=$(create_backup "$BLERC_DEST")
-                    print_success "Backup created at $BACKUP_FILE"
-                    print_step "Updating .blerc..."
-                    cp "$BLERC_SRC" "$BLERC_DEST"
-                    print_success "ble.sh configuration updated"
-                fi
-            else
-                if diff -q "$BLERC_SRC" "$BLERC_DEST" >/dev/null 2>&1; then
-                    print_skip "ble.sh configuration is already up to date"
-                else
-                    print_step "Backing up existing .blerc..."
-                    BACKUP_FILE=$(create_backup "$BLERC_DEST")
-                    print_success "Backup created at $BACKUP_FILE"
-                    print_step "Updating .blerc..."
-                    cp "$BLERC_SRC" "$BLERC_DEST"
-                    print_success "ble.sh configuration updated"
-                fi
-            fi
-        else
-            print_step "Installing ble.sh configuration to $BLERC_DEST..."
-            cp "$BLERC_SRC" "$BLERC_DEST"
-            print_success "ble.sh configuration installed"
-        fi
-    fi
-
-    # Add ble.sh initialization to .bashrc
-    if [ -n "$BLE_SH_PATH" ]; then
-        BASHRC="$HOME/.bashrc"
-
-        # Check if ble.sh is already sourced
-        if grep -q "blesh/ble.sh" "$BASHRC" 2>/dev/null; then
-            print_skip "ble.sh already configured in .bashrc"
-        else
-            print_step "Adding ble.sh to .bashrc..."
-
-            # Create a temporary file with the new content
-            TEMP_BASHRC=$(mktemp)
-
-            # Add ble.sh source at the beginning with the detected path
-            cat > "$TEMP_BASHRC" << EOF
-# ble.sh - Bash Line Editor for Fish-like autosuggestions (Added by Omarchy)
-[[ \$- == *i* ]] && source $BLE_SH_PATH --attach=none
-
-EOF
-
-            # Append original .bashrc content
-            cat "$BASHRC" >> "$TEMP_BASHRC"
-
-            # Add ble-attach at the end
-            cat >> "$TEMP_BASHRC" << 'EOF'
-
-# Attach ble.sh (Added by Omarchy)
-[[ ! ${BLE_VERSION-} ]] || ble-attach
-EOF
-
-            # Backup and replace
-            BACKUP_FILE=$(create_backup "$BASHRC")
-            print_success "Backup created at $BACKUP_FILE"
-            mv "$TEMP_BASHRC" "$BASHRC"
-            print_success "ble.sh enabled in .bashrc"
-        fi
-    fi
+    echo -e "${GREEN}Fish shell installed successfully!${NC}"
+    echo -e "Features included:"
+    echo -e "  • Native Fish autosuggestions and syntax highlighting"
+    echo -e "  • Starship prompt (configured via ~/.config/starship.toml)"
+    echo -e "  • fzf keybindings (Ctrl+R for history, Ctrl+Alt+F for directories)"
+    echo -e "  • Smart directory navigation (zoxide, eza)"
+    echo -e ""
 fi
 
 ################################################################################
@@ -1867,6 +1776,84 @@ if [ "$INSTALL_WAYBAR" = true ]; then
 fi
 
 ################################################################################
+# 13. Install Brave Browser
+################################################################################
+
+if [ "$INSTALL_BRAVE" = true ]; then
+    print_header "Installing Brave Browser"
+
+    # Install brave-bin package
+    if package_installed "brave-bin"; then
+        print_skip "Brave browser is already installed"
+    else
+        print_step "Installing brave-bin package..."
+        sudo pacman -S --needed --noconfirm brave-bin
+        print_success "Brave browser installed"
+    fi
+
+    # Configure default browser in uwsm
+    UWSM_DEFAULT="$HOME/.config/uwsm/default"
+    UWSM_DIR="$HOME/.config/uwsm"
+
+    # Create uwsm config directory if it doesn't exist
+    if [ ! -d "$UWSM_DIR" ]; then
+        print_step "Creating uwsm config directory..."
+        mkdir -p "$UWSM_DIR"
+        print_success "uwsm config directory created"
+    fi
+
+    # Check if default file exists, create if not
+    if [ ! -f "$UWSM_DEFAULT" ]; then
+        print_step "Creating uwsm default configuration..."
+        cat > "$UWSM_DEFAULT" << 'EOF'
+# Changes require a restart to take effect.
+
+# Browser
+export BROWSER=brave
+EOF
+        print_success "uwsm default configuration created with Brave as default browser"
+    else
+        # File exists, check if BROWSER is already set to brave
+        if grep -q "^export BROWSER=brave" "$UWSM_DEFAULT" 2>/dev/null; then
+            print_skip "BROWSER already set to brave in uwsm default"
+        elif grep -q "^export BROWSER=" "$UWSM_DEFAULT" 2>/dev/null; then
+            # BROWSER is set to something else, update it
+            print_step "Updating BROWSER setting in uwsm default..."
+            # Create backup first
+            BACKUP_FILE=$(create_backup "$UWSM_DEFAULT")
+            if [ -n "$BACKUP_FILE" ]; then
+                print_success "Backup created at $BACKUP_FILE"
+            fi
+            # Update the BROWSER line
+            sed -i 's|^export BROWSER=.*|export BROWSER=brave|' "$UWSM_DEFAULT"
+            print_success "BROWSER updated to brave in uwsm default"
+        else
+            # BROWSER line doesn't exist, add it
+            print_step "Adding BROWSER setting to uwsm default..."
+            # Create backup first
+            BACKUP_FILE=$(create_backup "$UWSM_DEFAULT")
+            if [ -n "$BACKUP_FILE" ]; then
+                print_success "Backup created at $BACKUP_FILE"
+            fi
+            # Add BROWSER line after a comment if there's none, or at the end
+            if grep -q "# Browser" "$UWSM_DEFAULT" 2>/dev/null; then
+                # Add after the existing comment
+                sed -i '/# Browser/a export BROWSER=brave' "$UWSM_DEFAULT"
+            else
+                # Add at the end with a comment
+                echo "" >> "$UWSM_DEFAULT"
+                echo "# Browser" >> "$UWSM_DEFAULT"
+                echo "export BROWSER=brave" >> "$UWSM_DEFAULT"
+            fi
+            print_success "BROWSER set to brave in uwsm default"
+        fi
+    fi
+
+    echo -e "${GREEN}Brave browser installed and configured as default!${NC}"
+    echo -e "Note: You may need to restart your session for the BROWSER change to take effect.\n"
+fi
+
+################################################################################
 # Installation Complete
 ################################################################################
 
@@ -1878,10 +1865,10 @@ echo -e "${GREEN}All tasks completed successfully!${NC}\n"
 if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
    [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || \
    [ "$INSTALL_SCREENSAVER" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || \
-   [ "$INSTALL_PROMPT" = true ] || \
+   [ "$INSTALL_FISH" = true ] || \
    [ "$INSTALL_HYPRLAND_BINDINGS" = true ] || [ "$INSTALL_AUTO_TILE" = true ] || \
    [ "$INSTALL_WAYCORNER" = true ] || [ "$INSTALL_WAYBAR" = true ] || \
-   [ "$INSTALL_SSH" = true ]; then
+   [ "$INSTALL_SSH" = true ] || [ "$INSTALL_BRAVE" = true ]; then
 
     echo -e "${BOLD}Installed/configured components:${NC}"
 
@@ -1909,10 +1896,11 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
         echo -e "  • Cybex Plymouth theme"
     fi
 
-    if [ "$INSTALL_PROMPT" = true ]; then
+    if [ "$INSTALL_FISH" = true ]; then
+        echo -e "  • Fish shell (via omarchy-fish)"
         echo -e "  • Starship prompt configuration"
-        echo -e "  • Fish-like tab completion (menu-complete)"
-        echo -e "  • Fish-like autosuggestions (ble.sh)"
+        echo -e "  • Native autosuggestions and syntax highlighting"
+        echo -e "  • fzf keybindings and smart navigation tools"
     fi
 
     if [ "$INSTALL_HYPRLAND_BINDINGS" = true ]; then
@@ -1933,6 +1921,10 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
 
     if [ "$INSTALL_SSH" = true ]; then
         echo -e "  • SSH key for GitHub"
+    fi
+
+    if [ "$INSTALL_BRAVE" = true ]; then
+        echo -e "  • Brave browser (set as default)"
     fi
 
     echo ""
@@ -1973,10 +1965,10 @@ if [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || \
         echo -e "  • Run ${CYAN}source ~/.bashrc${NC} or restart your shell to update PATH"
     fi
 
-    # Fish-like tab completion and autosuggestions reminder
-    if [ "$INSTALL_PROMPT" = true ]; then
-        echo -e "  • ${BOLD}Restart your shell${NC} to enable Fish-like tab completion and autosuggestions"
-        echo -e "    Or run: ${CYAN}exec bash${NC}"
+    # Fish shell reminder
+    if [ "$INSTALL_FISH" = true ]; then
+        echo -e "  • ${BOLD}Restart your shell${NC} to launch Fish shell with Starship prompt"
+        echo -e "    Or run: ${CYAN}exec bash${NC} (which will auto-launch Fish)"
     fi
 
     # Mainline kernel reboot reminder
