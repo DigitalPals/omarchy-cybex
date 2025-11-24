@@ -1634,90 +1634,88 @@ fi
 if [ "$INSTALL_WAYBAR" = true ]; then
     print_header "Configuring Waybar Idle Toggle"
 
-    WAYBAR_CONFIG_SRC="$SCRIPT_DIR/config/waybar/config.jsonc"
     WAYBAR_CONFIG_DEST="$HOME/.config/waybar/config.jsonc"
-    WAYBAR_STYLE_SRC="$SCRIPT_DIR/config/waybar/style.css"
     WAYBAR_STYLE_DEST="$HOME/.config/waybar/style.css"
     INDICATOR_SRC="$SCRIPT_DIR/config/waybar/indicators/idle-toggle.sh"
     INDICATOR_DEST="$HOME/.local/share/omarchy/default/waybar/indicators/idle-toggle.sh"
 
-    # Install waybar configuration
-    if [ ! -f "$WAYBAR_CONFIG_SRC" ]; then
-        print_error "Source config.jsonc not found at $WAYBAR_CONFIG_SRC"
-        print_error "Skipping waybar configuration..."
+    # Check if waybar config exists
+    if [ ! -f "$WAYBAR_CONFIG_DEST" ]; then
+        print_error "Waybar config not found at $WAYBAR_CONFIG_DEST"
+        print_error "Please ensure Waybar is configured before adding idle toggle"
     else
-        mkdir -p "$(dirname "$WAYBAR_CONFIG_DEST")"
-
-        if [ -f "$WAYBAR_CONFIG_DEST" ]; then
-            # Use diff if cmp is not available
-            if command_exists cmp; then
-                if cmp -s "$WAYBAR_CONFIG_SRC" "$WAYBAR_CONFIG_DEST"; then
-                    print_skip "Waybar configuration already up to date"
-                else
-                    print_step "Backing up existing config.jsonc..."
-                    BACKUP_FILE=$(create_backup "$WAYBAR_CONFIG_DEST")
-                    print_success "Backup created at $BACKUP_FILE"
-                    print_step "Updating waybar config.jsonc..."
-                    cp "$WAYBAR_CONFIG_SRC" "$WAYBAR_CONFIG_DEST"
-                    print_success "Waybar configuration updated"
-                fi
-            else
-                # Fallback to diff if cmp is not available
-                if diff -q "$WAYBAR_CONFIG_SRC" "$WAYBAR_CONFIG_DEST" >/dev/null 2>&1; then
-                    print_skip "Waybar configuration already up to date"
-                else
-                    print_step "Backing up existing config.jsonc..."
-                    BACKUP_FILE=$(create_backup "$WAYBAR_CONFIG_DEST")
-                    print_success "Backup created at $BACKUP_FILE"
-                    print_step "Updating waybar config.jsonc..."
-                    cp "$WAYBAR_CONFIG_SRC" "$WAYBAR_CONFIG_DEST"
-                    print_success "Waybar configuration updated"
-                fi
-            fi
+        # Check if idle-toggle is already configured in config.jsonc
+        if grep -q '"custom/idle-toggle"' "$WAYBAR_CONFIG_DEST" 2>/dev/null; then
+            print_skip "Waybar idle toggle module already present in config.jsonc"
         else
-            print_step "Installing waybar config.jsonc to $WAYBAR_CONFIG_DEST..."
-            cp "$WAYBAR_CONFIG_SRC" "$WAYBAR_CONFIG_DEST"
-            print_success "Waybar configuration installed"
+            print_step "Adding idle toggle module to waybar config.jsonc..."
+
+            # Create backup
+            BACKUP_FILE=$(create_backup "$WAYBAR_CONFIG_DEST")
+            print_success "Backup created at $BACKUP_FILE"
+
+            # Add to modules-right array (look for common module to insert after)
+            # Try to insert after group/tray-expander, or bluetooth, or network as fallback
+            if grep -q '"group/tray-expander"' "$WAYBAR_CONFIG_DEST" 2>/dev/null; then
+                sed -i '/"group\/tray-expander",/a\    "custom/idle-toggle",' "$WAYBAR_CONFIG_DEST"
+            elif grep -q '"bluetooth"' "$WAYBAR_CONFIG_DEST" 2>/dev/null; then
+                sed -i '/"bluetooth"/i\    "custom/idle-toggle",' "$WAYBAR_CONFIG_DEST"
+            elif grep -q '"network"' "$WAYBAR_CONFIG_DEST" 2>/dev/null; then
+                sed -i '/"network"/i\    "custom/idle-toggle",' "$WAYBAR_CONFIG_DEST"
+            else
+                print_error "Could not find suitable location in modules-right array"
+                print_error "Please manually add \"custom/idle-toggle\" to modules-right"
+            fi
+
+            # Add module definition (insert before final closing brace)
+            # Look for the "tray" module definition and add after it
+            if grep -q '"tray":' "$WAYBAR_CONFIG_DEST" 2>/dev/null; then
+                sed -i '/"tray":/,/^  \}/{
+                    /^  \}/a\  ,\n  "custom/idle-toggle": {\n    "exec": "$OMARCHY_PATH/default/waybar/indicators/idle-toggle.sh",\n    "on-click": "omarchy-toggle-idle",\n    "return-type": "json",\n    "interval": 3,\n    "signal": 9\n  }
+                }' "$WAYBAR_CONFIG_DEST"
+            else
+                # Fallback: add before final closing brace
+                sed -i '$i\  ,\n  "custom/idle-toggle": {\n    "exec": "$OMARCHY_PATH/default/waybar/indicators/idle-toggle.sh",\n    "on-click": "omarchy-toggle-idle",\n    "return-type": "json",\n    "interval": 3,\n    "signal": 9\n  }' "$WAYBAR_CONFIG_DEST"
+            fi
+
+            print_success "Idle toggle module added to waybar config"
         fi
     fi
 
-    # Install waybar style
-    if [ ! -f "$WAYBAR_STYLE_SRC" ]; then
-        print_error "Source style.css not found at $WAYBAR_STYLE_SRC"
-        print_error "Skipping waybar style..."
+    # Check if waybar style exists
+    if [ ! -f "$WAYBAR_STYLE_DEST" ]; then
+        print_error "Waybar style.css not found at $WAYBAR_STYLE_DEST"
+        print_error "Please ensure Waybar is configured before adding idle toggle"
     else
-        mkdir -p "$(dirname "$WAYBAR_STYLE_DEST")"
-
-        if [ -f "$WAYBAR_STYLE_DEST" ]; then
-            # Use diff if cmp is not available
-            if command_exists cmp; then
-                if cmp -s "$WAYBAR_STYLE_SRC" "$WAYBAR_STYLE_DEST"; then
-                    print_skip "Waybar style already up to date"
-                else
-                    print_step "Backing up existing style.css..."
-                    BACKUP_FILE=$(create_backup "$WAYBAR_STYLE_DEST")
-                    print_success "Backup created at $BACKUP_FILE"
-                    print_step "Updating waybar style.css..."
-                    cp "$WAYBAR_STYLE_SRC" "$WAYBAR_STYLE_DEST"
-                    print_success "Waybar style updated"
-                fi
-            else
-                # Fallback to diff if cmp is not available
-                if diff -q "$WAYBAR_STYLE_SRC" "$WAYBAR_STYLE_DEST" >/dev/null 2>&1; then
-                    print_skip "Waybar style already up to date"
-                else
-                    print_step "Backing up existing style.css..."
-                    BACKUP_FILE=$(create_backup "$WAYBAR_STYLE_DEST")
-                    print_success "Backup created at $BACKUP_FILE"
-                    print_step "Updating waybar style.css..."
-                    cp "$WAYBAR_STYLE_SRC" "$WAYBAR_STYLE_DEST"
-                    print_success "Waybar style updated"
-                fi
-            fi
+        # Check if idle-toggle styles already exist
+        if grep -q '#custom-idle-toggle' "$WAYBAR_STYLE_DEST" 2>/dev/null; then
+            print_skip "Waybar idle toggle styles already present in style.css"
         else
-            print_step "Installing waybar style.css to $WAYBAR_STYLE_DEST..."
-            cp "$WAYBAR_STYLE_SRC" "$WAYBAR_STYLE_DEST"
-            print_success "Waybar style installed"
+            print_step "Adding idle toggle styles to waybar style.css..."
+
+            # Create backup
+            BACKUP_FILE=$(create_backup "$WAYBAR_STYLE_DEST")
+            print_success "Backup created at $BACKUP_FILE"
+
+            # Append theme-adaptive styles to end of file
+            cat >> "$WAYBAR_STYLE_DEST" << 'EOF'
+
+#custom-idle-toggle {
+  min-width: 12px;
+  margin-right: 17px;
+}
+
+#custom-idle-toggle.on {
+  color: @foreground;
+  opacity: 1.0;
+}
+
+#custom-idle-toggle.off {
+  color: @foreground;
+  opacity: 0.35;
+}
+EOF
+            print_success "Idle toggle styles added to waybar style.css"
         fi
     fi
 

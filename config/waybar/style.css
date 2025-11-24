@@ -63,8 +63,7 @@
 #pulseaudio,
 #custom-omarchy,
 #custom-screenrecording-indicator,
-#custom-update,
-#custom-idle-toggle {
+#custom-update {
   min-width: 12px;
   margin: 0 7.5px;
 }
@@ -100,9 +99,11 @@ tooltip {
 }
 
 #custom-idle-toggle.on {
-  color: #66fcf1;
+  color: @foreground;
+  opacity: 1.0;
 }
 
 #custom-idle-toggle.off {
-  color: #555555;
+  color: @foreground;
+  opacity: 0.35;
 }

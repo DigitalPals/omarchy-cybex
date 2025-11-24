@@ -160,13 +160,14 @@ Automatically adds waycorner to Hyprland autostart. Move your mouse to the corne
 
 ### Waybar Idle Toggle
 Adds a clickable toggle icon to Waybar that controls the idle lock (hypridle):
-- **Toggle ON** (bright cyan) - Idle lock disabled, computer stays active
-- **Toggle OFF** (gray) - Computer will idle and lock when inactive
+- **Toggle ON** (full brightness) - Idle lock disabled, computer stays active
+- **Toggle OFF** (dimmed) - Computer will idle and lock when inactive
 - Click the icon to toggle between states
 - Updates every 3 seconds to reflect current status
-- Works with all Omarchy themes
+- Automatically adapts to all Omarchy themes (uses theme foreground color with opacity)
+- Non-destructive installation: Preserves your existing Waybar configuration
 
-The icon appears before the bluetooth icon in the upper right corner of Waybar.
+The icon appears in the upper right modules of Waybar. Installation creates backups of your config files before making any changes.
 
 ### SSH Key
 Generates an ED25519 SSH key pair and configures ssh-agent for automatic key loading. Provides instructions for adding the key to GitHub.
