@@ -29,6 +29,7 @@ This script automates the installation and configuration of:
 - 🖱️  **Hot Corners** - macOS-style hot corners for Hyprland via waycorner
 - 💤 **Waybar Idle Toggle** - Click to toggle idle lock on/off with visual indicator
 - 🔑 **SSH Key** - Generate and configure SSH key for GitHub
+- 🌐 **Brave Browser** - Privacy-focused web browser set as system default
 - 🐧 **Mainline Kernel** - Latest mainline Linux kernel (Chaotic-AUR)
 
 ## Prerequisites
@@ -82,6 +83,7 @@ chmod +x install.sh
 | `waycorner` | Install and configure hot corners for Hyprland | - |
 | `waybar` | Configure Waybar idle toggle indicator | - |
 | `ssh` | Generate SSH key for GitHub | `ssh-key` |
+| `brave` | Install Brave browser and set as default | - |
 | `mainline` | Install and configure mainline kernel | - |
 
 ### Examples
@@ -103,7 +105,7 @@ chmod +x install.sh
 ./install.sh auto-tile
 
 # Install multiple specific components
-./install.sh packages claude codex ssh
+./install.sh packages claude codex ssh brave
 
 # Install mainline kernel only
 ./install.sh mainline
@@ -168,6 +170,9 @@ The icon appears before the bluetooth icon in the upper right corner of Waybar.
 
 ### SSH Key
 Generates an ED25519 SSH key pair and configures ssh-agent for automatic key loading. Provides instructions for adding the key to GitHub.
+
+### Brave Browser
+Installs the Brave web browser from the AUR (brave-bin package) and sets it as the system default browser by adding `BROWSER=brave` to `~/.config/uwsm/default`. Brave is a privacy-focused browser with built-in ad blocking and tracking protection.
 
 ### Mainline Kernel
 Installs the latest mainline Linux kernel from Chaotic-AUR. Automatically configures the bootloader to use the new kernel. **Requires reboot** to use the new kernel.
