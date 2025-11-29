@@ -7,7 +7,7 @@
   border: none;
   border-radius: 0;
   min-height: 0;
-  font-family: JetBrainsMono Nerd Font;
+  font-family: 'JetBrainsMono Nerd Font';
   font-size: 12px;
 }
 
@@ -20,46 +20,18 @@
 }
 
 #workspaces button {
-  /* all: initial; */
+  all: initial;
   padding: 0 6px;
   margin: 0 1.5px;
   min-width: 9px;
-  font-size: 18px;
-  font-family: JetBrainsMono Nerd Font;
-  color: @foreground;
-  background-color: transparent;
-}
-
-#workspaces button label {
-  font-size: 18px;
 }
 
 #workspaces button.empty {
   opacity: 0.5;
-  font-size: 18px;
 }
 
-#workspaces button.empty label {
-  font-size: 18px;
-}
-
-#workspaces button.active label {
-  font-size: 18px;
-}
-
-#workspaces button.visible label {
-  font-size: 18px;
-}
-
-#workspaces button.persistent label {
-  font-size: 18px;
-}
-
-#tray,
 #cpu,
 #battery,
-#network,
-#bluetooth,
 #pulseaudio,
 #custom-omarchy,
 #custom-screenrecording-indicator,
@@ -68,8 +40,20 @@
   margin: 0 7.5px;
 }
 
+#tray {
+  margin-right: 16px;
+}
+
+#bluetooth {
+  margin-right: 17px;
+}
+
+#network {
+  margin-right: 13px;
+}
+
 #custom-expand-icon {
-  margin-right: 7px;
+  margin-right: 18px;
 }
 
 tooltip {
@@ -96,6 +80,11 @@ tooltip {
 
 #custom-screenrecording-indicator.active {
   color: #a55555;
+}
+
+#custom-idle-toggle {
+  min-width: 12px;
+  margin-right: 17px;
 }
 
 #custom-idle-toggle.on {

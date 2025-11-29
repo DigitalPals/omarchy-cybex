@@ -1,9 +1,3 @@
-# Ghostty Configuration
-# Part of Omarchy Cybex setup
-
-# Use fish shell
-command = /usr/bin/fish
-
 # Dynamic theme colors
 config-file = ?"~/.config/omarchy/current/theme/ghostty.conf"
 
@@ -37,5 +31,6 @@ keybind = super+control+shift+alt+arrow_left=resize_split:left,100
 keybind = super+control+shift+alt+arrow_right=resize_split:right,100
 
 # Slowdown mouse scrolling
-mouse-scroll-multiplier = 0.95
+#mouse-scroll-multiplier = 0.95
+mouse-scroll-multiplier = 1.1
 keybind = shift+enter=text:\x1b\r
