@@ -685,7 +685,7 @@ if [ "$UNINSTALL_MODE" = true ]; then
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
                 print_step "Removing brave-bin package..."
-                sudo pacman -R --noconfirm brave-bin
+                yay -R --noconfirm brave-bin
                 print_success "Brave browser removed"
             else
                 print_skip "Skipping Brave removal"
@@ -1847,8 +1847,8 @@ if [ "$INSTALL_BRAVE" = true ]; then
     if package_installed "brave-bin"; then
         print_skip "Brave browser is already installed"
     else
-        print_step "Installing brave-bin package..."
-        sudo pacman -S --needed --noconfirm brave-bin
+        print_step "Installing brave-bin package from AUR..."
+        yay -S --needed --noconfirm brave-bin
         print_success "Brave browser installed"
     fi
 
