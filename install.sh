@@ -155,6 +155,7 @@ show_usage() {
     echo -e "  ${GREEN}ssh${NC}              Generate SSH key for GitHub (alias: ssh-key)"
     echo -e "  ${GREEN}brave${NC}            Install Brave browser and set as default"
     echo -e "  ${GREEN}mainline${NC}         Install and configure mainline kernel (Chaotic-AUR)"
+    echo -e "  ${GREEN}passwordless-sudo${NC}  Enable passwordless sudo for current user"
     echo ""
     echo -e "${BOLD}UNINSTALL:${NC}"
     echo -e "  ${YELLOW}uninstall${NC} all              Remove all installed components"
@@ -198,6 +199,7 @@ INSTALL_WAYBAR=false
 INSTALL_SSH=false
 INSTALL_BRAVE=false
 INSTALL_MAINLINE=false
+INSTALL_PASSWORDLESS_SUDO=false
 
 # Show help if no arguments provided
 if [ $# -eq 0 ]; then
@@ -267,6 +269,9 @@ for arg in "$@"; do
             ;;
         mainline)
             INSTALL_MAINLINE=true
+            ;;
+        passwordless-sudo)
+            INSTALL_PASSWORDLESS_SUDO=true
             ;;
         *)
             print_error "Unknown parameter: $arg"
@@ -742,6 +747,22 @@ if [ "$UNINSTALL_MODE" = true ]; then
             fi
         else
             print_skip "Skipping mainline kernel removal"
+        fi
+    fi
+
+    # Uninstall passwordless sudo
+    if [ "$INSTALL_PASSWORDLESS_SUDO" = true ]; then
+        print_header "Removing Passwordless Sudo"
+
+        SUDOERS_FILE="/etc/sudoers.d/$(whoami)"
+
+        if sudo test -f "$SUDOERS_FILE"; then
+            print_step "Removing sudoers file..."
+            sudo rm "$SUDOERS_FILE"
+            print_success "Passwordless sudo removed"
+            echo -e "${YELLOW}Note: You will need to enter your password for sudo commands now.${NC}"
+        else
+            print_skip "Passwordless sudo is not configured"
         fi
     fi
 
@@ -1387,6 +1408,48 @@ EOF
         fi
     fi
     set -e  # Re-enable exit on error
+fi
+
+################################################################################
+# 8. Configure Passwordless Sudo
+################################################################################
+
+if [ "$INSTALL_PASSWORDLESS_SUDO" = true ]; then
+    print_header "Configuring Passwordless Sudo"
+
+    SUDOERS_FILE="/etc/sudoers.d/$(whoami)"
+    SUDOERS_CONTENT="$(whoami) ALL=(ALL) NOPASSWD: ALL"
+
+    # Check if already configured
+    if sudo test -f "$SUDOERS_FILE"; then
+        if sudo grep -q "NOPASSWD: ALL" "$SUDOERS_FILE" 2>/dev/null; then
+            print_skip "Passwordless sudo already configured"
+        else
+            # File exists but different content - update it
+            print_step "Updating passwordless sudo configuration..."
+            echo "$SUDOERS_CONTENT" | sudo tee "$SUDOERS_FILE" > /dev/null
+            sudo chmod 440 "$SUDOERS_FILE"
+            print_success "Passwordless sudo updated"
+        fi
+    else
+        print_step "Creating sudoers file for $(whoami)..."
+
+        # Create temp file and validate
+        TEMP_SUDOERS=$(mktemp)
+        echo "$SUDOERS_CONTENT" > "$TEMP_SUDOERS"
+
+        if sudo visudo -c -f "$TEMP_SUDOERS" &>/dev/null; then
+            sudo cp "$TEMP_SUDOERS" "$SUDOERS_FILE"
+            sudo chmod 440 "$SUDOERS_FILE"
+            sudo chown root:root "$SUDOERS_FILE"
+            print_success "Passwordless sudo enabled for $(whoami)"
+        else
+            print_error "Failed to validate sudoers syntax"
+            rm "$TEMP_SUDOERS"
+            exit 1
+        fi
+        rm "$TEMP_SUDOERS"
+    fi
 fi
 
 ################################################################################

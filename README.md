@@ -29,6 +29,7 @@ This script automates the installation and configuration of:
 - 🖱️  **Hot Corners** - macOS-style hot corners for Hyprland via waycorner
 - 💤 **Waybar Idle Toggle** - Click to toggle idle lock on/off with visual indicator
 - 🔑 **SSH Key** - Generate and configure SSH key for GitHub
+- 🔓 **Passwordless Sudo** - Enable passwordless sudo for the current user
 - 🌐 **Brave Browser** - Privacy-focused web browser set as system default
 - 🐧 **Mainline Kernel** - Latest mainline Linux kernel (Chaotic-AUR)
 
@@ -83,6 +84,7 @@ chmod +x install.sh
 | `waycorner` | Install and configure hot corners for Hyprland | - |
 | `waybar` | Configure Waybar idle toggle indicator | - |
 | `ssh` | Generate SSH key for GitHub | `ssh-key` |
+| `passwordless-sudo` | Enable passwordless sudo for current user | - |
 | `brave` | Install Brave browser and set as default | - |
 | `mainline` | Install and configure mainline kernel | - |
 
@@ -171,6 +173,11 @@ The icon appears in the upper right modules of Waybar. Installation creates back
 
 ### SSH Key
 Generates an ED25519 SSH key pair and configures ssh-agent for automatic key loading. Provides instructions for adding the key to GitHub.
+
+### Passwordless Sudo
+Enables passwordless sudo for the current user by creating `/etc/sudoers.d/<username>`. This allows running sudo commands without entering a password.
+
+**Security Note:** This option is not included in `all` and must be explicitly requested. Only enable on trusted single-user systems.
 
 ### Brave Browser
 Installs the Brave web browser from the AUR (brave-bin package) and sets it as the system default browser by adding `BROWSER=brave` to `~/.config/uwsm/default`. Brave is a privacy-focused browser with built-in ad blocking and tracking protection.
