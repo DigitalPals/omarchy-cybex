@@ -149,7 +149,6 @@ show_usage() {
     echo -e "  ${GREEN}plymouth${NC}         Install Cybex Plymouth boot theme"
     echo -e "  ${GREEN}fish${NC}             Install Fish shell with Starship prompt (via omarchy-fish)"
     echo -e "  ${GREEN}hyprland${NC}         Configure Hyprland bindings (alias: hyprland-bindings)"
-    echo -e "  ${GREEN}auto-tile${NC}        Install Hyprland auto-tiling helper"
     echo -e "  ${GREEN}waycorner${NC}        Install and configure hot corners for Hyprland"
     echo -e "  ${GREEN}waybar${NC}           Configure Waybar idle toggle indicator"
     echo -e "  ${GREEN}ssh${NC}              Generate SSH key for GitHub (alias: ssh-key)"
@@ -159,14 +158,13 @@ show_usage() {
     echo ""
     echo -e "${BOLD}UNINSTALL:${NC}"
     echo -e "  ${YELLOW}uninstall${NC} all              Remove all installed components"
-    echo -e "  ${YELLOW}uninstall${NC} [option]         Remove specific component (e.g., auto-tile)"
+    echo -e "  ${YELLOW}uninstall${NC} [option]         Remove specific component"
     echo ""
     echo -e "${BOLD}EXAMPLES:${NC}"
     echo -e "  $0 all                    # Install everything except mainline kernel"
     echo -e "  $0 claude ssh             # Install Claude Code and generate SSH key"
     echo -e "  $0 mainline               # Only configure mainline kernel"
     echo -e "  $0 fish codex             # Install Fish shell and Codex CLI"
-    echo -e "  $0 uninstall auto-tile    # Remove auto-tile helper"
     echo -e "  $0 uninstall all          # Remove all installed components"
     echo ""
     echo -e "${BOLD}NOTES:${NC}"
@@ -193,7 +191,6 @@ INSTALL_SCREENSAVER=false
 INSTALL_PLYMOUTH=false
 INSTALL_FISH=false
 INSTALL_HYPRLAND_BINDINGS=false
-INSTALL_AUTO_TILE=false
 INSTALL_WAYCORNER=false
 INSTALL_WAYBAR=false
 INSTALL_SSH=false
@@ -214,7 +211,7 @@ if [ "$1" = "uninstall" ]; then
 
     # Show help if no uninstall target specified
     if [ $# -eq 0 ]; then
-        print_error "Please specify what to uninstall (e.g., 'uninstall all' or 'uninstall auto-tile')"
+        print_error "Please specify what to uninstall (e.g., 'uninstall all' or 'uninstall waycorner')"
         echo ""
         show_usage
         exit 1
@@ -247,9 +244,6 @@ for arg in "$@"; do
             ;;
         hyprland|hyprland-bindings)
             INSTALL_HYPRLAND_BINDINGS=true
-            ;;
-        auto-tile)
-            INSTALL_AUTO_TILE=true
             ;;
         waycorner)
             INSTALL_WAYCORNER=true
@@ -291,7 +285,6 @@ if [ "$INSTALL_ALL" = true ]; then
     INSTALL_PLYMOUTH=true
     INSTALL_FISH=true
     INSTALL_HYPRLAND_BINDINGS=true
-    INSTALL_AUTO_TILE=true
     INSTALL_WAYCORNER=true
     INSTALL_WAYBAR=true
     INSTALL_SSH=true
@@ -545,35 +538,6 @@ if [ "$UNINSTALL_MODE" = true ]; then
         fi
     fi
 
-    # Uninstall auto-tile
-    if [ "$INSTALL_AUTO_TILE" = true ]; then
-        print_header "Uninstalling Auto-Tile Helper"
-
-        AUTO_TILE_DEST="$HOME/.local/bin/auto-tile"
-
-        # Kill running process
-        if pgrep -f "$AUTO_TILE_DEST" >/dev/null 2>&1; then
-            print_step "Stopping auto-tile helper..."
-            pkill -f "$AUTO_TILE_DEST"
-            print_success "auto-tile helper stopped"
-        fi
-
-        # Remove script
-        if [ -f "$AUTO_TILE_DEST" ]; then
-            print_step "Removing auto-tile script..."
-            rm "$AUTO_TILE_DEST"
-            print_success "auto-tile script removed"
-        fi
-
-        # Remove from autostart.conf
-        HYPRLAND_AUTOSTART="$HOME/.config/hypr/autostart.conf"
-        if [ -f "$HYPRLAND_AUTOSTART" ]; then
-            print_step "Removing auto-tile from Hyprland autostart..."
-            remove_script_lines "$HYPRLAND_AUTOSTART" "Auto-tile first window"
-            print_success "auto-tile removed from autostart"
-        fi
-    fi
-
     # Uninstall waycorner
     if [ "$INSTALL_WAYCORNER" = true ]; then
         print_header "Uninstalling Waycorner"
@@ -795,12 +759,12 @@ NEED_INTERNET=false
 NEED_DISK_SPACE=false
 
 # Components that require sudo
-if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || [ "$INSTALL_AUTO_TILE" = true ] || [ "$INSTALL_BRAVE" = true ]; then
+if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || [ "$INSTALL_BRAVE" = true ]; then
     NEED_SUDO=true
 fi
 
 # Components that require internet
-if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_AUTO_TILE" = true ] || [ "$INSTALL_WAYCORNER" = true ] || [ "$INSTALL_BRAVE" = true ]; then
+if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_WAYCORNER" = true ] || [ "$INSTALL_BRAVE" = true ]; then
     NEED_INTERNET=true
 fi
 
@@ -1509,95 +1473,7 @@ if [ "$INSTALL_HYPRLAND_BINDINGS" = true ]; then
 fi
 
 ################################################################################
-# 10. Install Hyprland Auto-Tile Helper
-################################################################################
-
-if [ "$INSTALL_AUTO_TILE" = true ]; then
-    print_header "Installing Hyprland Auto-Tile Helper"
-
-    AUTO_TILE_SRC="$SCRIPT_DIR/scripts/auto-tile"
-    AUTO_TILE_DEST="$HOME/.local/bin/auto-tile"
-
-    AUTO_TILE_DEPS=(jq socat)
-    AUTO_TILE_MISSING_PACKAGES=()
-
-    for dep in "${AUTO_TILE_DEPS[@]}"; do
-        if ! command_exists "$dep"; then
-            AUTO_TILE_MISSING_PACKAGES+=("$dep")
-        fi
-    done
-
-    if [ ${#AUTO_TILE_MISSING_PACKAGES[@]} -gt 0 ]; then
-        print_step "Installing auto-tile dependencies: ${AUTO_TILE_MISSING_PACKAGES[*]}..."
-        sudo pacman -S --needed --noconfirm "${AUTO_TILE_MISSING_PACKAGES[@]}"
-        print_success "auto-tile dependencies installed"
-    fi
-
-    AUTO_TILE_DEP_FAILURE=false
-    for dep in "${AUTO_TILE_DEPS[@]}"; do
-        if ! command_exists "$dep"; then
-            print_error "Dependency '$dep' is required for auto-tile but is still missing."
-            AUTO_TILE_DEP_FAILURE=true
-        fi
-    done
-
-    if [ "$AUTO_TILE_DEP_FAILURE" = true ]; then
-        print_error "Skipping auto-tile installation until dependencies are resolved."
-    elif [ ! -f "$AUTO_TILE_SRC" ]; then
-        print_error "Source auto-tile script not found at $AUTO_TILE_SRC"
-    else
-        mkdir -p "$HOME/.local/bin"
-
-        AUTO_TILE_UPDATED=false
-        if [ -f "$AUTO_TILE_DEST" ] && command_exists cmp && cmp -s "$AUTO_TILE_SRC" "$AUTO_TILE_DEST"; then
-            print_skip "auto-tile script already up to date"
-        else
-            print_step "Installing auto-tile helper to $AUTO_TILE_DEST..."
-            cp "$AUTO_TILE_SRC" "$AUTO_TILE_DEST"
-            chmod +x "$AUTO_TILE_DEST"
-            AUTO_TILE_UPDATED=true
-            print_success "auto-tile helper installed"
-        fi
-
-        HYPRLAND_AUTOSTART="$HOME/.config/hypr/autostart.conf"
-
-        if [ -f "$HYPRLAND_AUTOSTART" ]; then
-            if grep -q "exec-once = ~/.local/bin/auto-tile" "$HYPRLAND_AUTOSTART"; then
-                print_skip "auto-tile already in Hyprland autostart"
-            else
-                print_step "Adding auto-tile to Hyprland autostart..."
-                echo "" >> "$HYPRLAND_AUTOSTART"
-                echo "# Auto-tile first window per workspace" >> "$HYPRLAND_AUTOSTART"
-                echo "exec-once = ~/.local/bin/auto-tile" >> "$HYPRLAND_AUTOSTART"
-                print_success "auto-tile added to Hyprland autostart"
-            fi
-        else
-            print_error "Hyprland autostart.conf not found at $HYPRLAND_AUTOSTART"
-            print_error "Add 'exec-once = ~/.local/bin/auto-tile' manually to enable the helper"
-        fi
-
-        if [ -f "$AUTO_TILE_DEST" ]; then
-            print_step "Starting auto-tile helper for current session..."
-            if pgrep -f "$AUTO_TILE_DEST" >/dev/null 2>&1; then
-                if [ "$AUTO_TILE_UPDATED" = true ]; then
-                    print_step "Restarting auto-tile helper with updated script..."
-                    pkill -f "$AUTO_TILE_DEST" || true
-                    sleep 0.5
-                    "$AUTO_TILE_DEST" >/dev/null 2>&1 &
-                    print_success "auto-tile helper restarted"
-                else
-                    print_skip "auto-tile helper is already running"
-                fi
-            else
-                "$AUTO_TILE_DEST" >/dev/null 2>&1 &
-                print_success "auto-tile helper started"
-            fi
-        fi
-    fi
-fi
-
-################################################################################
-# 11. Install and Configure Waycorner (Hot Corners)
+# 10. Install and Configure Waycorner (Hot Corners)
 ################################################################################
 
 if [ "$INSTALL_WAYCORNER" = true ]; then
@@ -1691,7 +1567,7 @@ if [ "$INSTALL_WAYCORNER" = true ]; then
 fi
 
 ################################################################################
-# 12. Configure Waybar Idle Toggle
+# 11. Configure Waybar Idle Toggle
 ################################################################################
 
 if [ "$INSTALL_WAYBAR" = true ]; then
@@ -1837,7 +1713,7 @@ EOF
 fi
 
 ################################################################################
-# 13. Install Brave Browser
+# 12. Install Brave Browser
 ################################################################################
 
 if [ "$INSTALL_BRAVE" = true ]; then
@@ -1927,7 +1803,7 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
    [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || \
    [ "$INSTALL_SCREENSAVER" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || \
    [ "$INSTALL_FISH" = true ] || \
-   [ "$INSTALL_HYPRLAND_BINDINGS" = true ] || [ "$INSTALL_AUTO_TILE" = true ] || \
+   [ "$INSTALL_HYPRLAND_BINDINGS" = true ] || \
    [ "$INSTALL_WAYCORNER" = true ] || [ "$INSTALL_WAYBAR" = true ] || \
    [ "$INSTALL_SSH" = true ] || [ "$INSTALL_BRAVE" = true ]; then
 
@@ -1966,10 +1842,6 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
 
     if [ "$INSTALL_HYPRLAND_BINDINGS" = true ]; then
         echo -e "  • Hyprland bindings configuration"
-    fi
-
-    if [ "$INSTALL_AUTO_TILE" = true ]; then
-        echo -e "  • Hyprland auto-tile helper"
     fi
 
     if [ "$INSTALL_WAYCORNER" = true ]; then
@@ -2016,8 +1888,7 @@ fi
 
 # Next steps section - only show if there are actual next steps
 if [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || \
-   [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || \
-   [ "$INSTALL_AUTO_TILE" = true ]; then
+   [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PLYMOUTH" = true ]; then
 
     echo -e "${BOLD}Next steps:${NC}"
 
@@ -2040,10 +1911,6 @@ if [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || \
     # Plymouth theme reboot reminder
     if [ "$INSTALL_PLYMOUTH" = true ]; then
         echo -e "  • Reboot to see the new Plymouth boot splash"
-    fi
-
-    if [ "$INSTALL_AUTO_TILE" = true ]; then
-        echo -e "  • Reload Hyprland (${CYAN}hyprctl reload${NC}) if the auto-tile helper does not engage immediately"
     fi
 
     echo ""

@@ -80,7 +80,6 @@ chmod +x install.sh
 | `plymouth` | Install Cybex Plymouth boot theme | - |
 | `fish` | Install Fish shell with Starship prompt (via omarchy-fish) | - |
 | `hyprland` | Configure Hyprland bindings | `hyprland-bindings` |
-| `auto-tile` | Install Hyprland auto-tiling helper | - |
 | `waycorner` | Install and configure hot corners for Hyprland | - |
 | `waybar` | Configure Waybar idle toggle indicator | - |
 | `ssh` | Generate SSH key for GitHub | `ssh-key` |
@@ -102,9 +101,6 @@ chmod +x install.sh
 
 # Install Fish shell and Codex CLI
 ./install.sh fish codex
-
-# Install Hyprland auto-tile helper
-./install.sh auto-tile
 
 # Install multiple specific components
 ./install.sh packages claude codex ssh brave
