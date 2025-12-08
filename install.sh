@@ -38,6 +38,11 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 BOLD='\033[1m'
 
+# Configuration constants
+MIN_ROOT_SPACE_MB=1024
+MIN_BOOT_SPACE_MB=100
+MIN_NODE_VERSION=14
+
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -97,7 +102,11 @@ remove_script_lines() {
     fi
 
     # Create temp file without our additions
-    local temp_file=$(mktemp)
+    local temp_file
+    temp_file=$(mktemp) || {
+        print_error "Failed to create temp file for $file"
+        return 1
+    }
     local skip_next_non_empty=false
 
     while IFS= read -r line; do
@@ -124,8 +133,56 @@ remove_script_lines() {
         echo "$line" >> "$temp_file"
     done < "$file"
 
-    # Replace original with cleaned version
-    mv "$temp_file" "$file"
+    # Validate temp file before replacing (allow empty result if original was effectively empty)
+    if [ -s "$temp_file" ] || [ ! -s "$file" ]; then
+        mv "$temp_file" "$file" || {
+            print_error "Failed to update $file"
+            rm -f "$temp_file"
+            return 1
+        }
+    else
+        # Original had content but result is empty - something went wrong
+        print_error "Temp file is unexpectedly empty, keeping original $file"
+        rm -f "$temp_file"
+        return 1
+    fi
+}
+
+# Deploy a config file with backup and comparison
+# Usage: deploy_config_file <src> <dest> <name> [executable]
+deploy_config_file() {
+    local src="$1"
+    local dest="$2"
+    local name="$3"
+    local executable="${4:-false}"
+
+    if [ ! -f "$src" ]; then
+        print_error "Source $name not found at $src"
+        print_error "Skipping $name configuration..."
+        return 1
+    fi
+
+    mkdir -p "$(dirname "$dest")"
+
+    if [ -f "$dest" ]; then
+        if cmp -s "$src" "$dest"; then
+            print_skip "$name is already up to date"
+            return 0
+        fi
+        print_step "Backing up existing $name..."
+        BACKUP_FILE=$(create_backup "$dest")
+        print_success "Backup created at $BACKUP_FILE"
+        print_step "Updating $name..."
+        cp "$src" "$dest"
+        [ "$executable" = true ] && chmod +x "$dest"
+        print_success "$name updated"
+    else
+        print_step "Installing $name to $dest..."
+        cp "$src" "$dest"
+        [ "$executable" = true ] && chmod +x "$dest"
+        print_success "$name configured"
+    fi
+    return 0
 }
 
 show_usage() {
@@ -807,8 +864,8 @@ if [ "$NEED_SUDO" = true ] || [ "$NEED_INTERNET" = true ] || [ "$NEED_DISK_SPACE
     if [ "$NEED_DISK_SPACE" = true ]; then
         print_step "Checking available disk space..."
         AVAILABLE_ROOT=$(df / | awk 'NR==2 {print int($4/1024)}')  # Available space in MB
-        if [ "$AVAILABLE_ROOT" -lt 1024 ]; then
-            print_error "Insufficient disk space. At least 1GB free space is required."
+        if [ "$AVAILABLE_ROOT" -lt "$MIN_ROOT_SPACE_MB" ]; then
+            print_error "Insufficient disk space. At least ${MIN_ROOT_SPACE_MB}MB free space is required."
             print_error "Available: ${AVAILABLE_ROOT}MB"
             exit 1
         fi
@@ -816,8 +873,8 @@ if [ "$NEED_SUDO" = true ] || [ "$NEED_INTERNET" = true ] || [ "$NEED_DISK_SPACE
         # Check /boot separately if it's a separate partition
         if mountpoint -q /boot; then
             AVAILABLE_BOOT=$(df /boot | awk 'NR==2 {print int($4/1024)}')  # Available space in MB
-            if [ "$AVAILABLE_BOOT" -lt 100 ]; then
-                print_error "Insufficient disk space in /boot. At least 100MB free space is required."
+            if [ "$AVAILABLE_BOOT" -lt "$MIN_BOOT_SPACE_MB" ]; then
+                print_error "Insufficient disk space in /boot. At least ${MIN_BOOT_SPACE_MB}MB free space is required."
                 print_error "Available: ${AVAILABLE_BOOT}MB"
                 exit 1
             fi
@@ -980,12 +1037,22 @@ if [ "$INSTALL_CLAUDE" = true ]; then
     else
         print_step "Installing Claude Code using official installer..."
 
-        # Download and run the official installer
-        if curl -fsSL https://claude.ai/install.sh | bash; then
-            print_success "Claude Code installed successfully"
+        # Download installer to temp file first (safer than pipe-to-bash)
+        CLAUDE_INSTALLER=$(mktemp)
+        if curl -fsSL https://claude.ai/install.sh -o "$CLAUDE_INSTALLER"; then
+            chmod +x "$CLAUDE_INSTALLER"
+            if bash "$CLAUDE_INSTALLER"; then
+                print_success "Claude Code installed successfully"
+            else
+                print_error "Failed to install Claude Code"
+                print_error "Please try running manually: curl -fsSL https://claude.ai/install.sh | bash"
+                rm -f "$CLAUDE_INSTALLER"
+                exit 1
+            fi
+            rm -f "$CLAUDE_INSTALLER"
         else
-            print_error "Failed to install Claude Code"
-            print_error "Please try running manually: curl -fsSL https://claude.ai/install.sh | bash"
+            print_error "Failed to download Claude Code installer"
+            rm -f "$CLAUDE_INSTALLER"
             exit 1
         fi
     fi
@@ -1029,8 +1096,8 @@ if [ "$INSTALL_CODEX" = true ]; then
 
     NODE_VERSION=$(node --version 2>/dev/null | sed 's/v//')
     NODE_MAJOR=$(echo "$NODE_VERSION" | cut -d. -f1)
-    if [ "$NODE_MAJOR" -lt 14 ]; then
-        print_error "Node.js version $NODE_VERSION is too old. Minimum required: v14.0.0"
+    if [ "$NODE_MAJOR" -lt "$MIN_NODE_VERSION" ]; then
+        print_error "Node.js version $NODE_VERSION is too old. Minimum required: v${MIN_NODE_VERSION}.0.0"
         exit 1
     fi
     print_success "Node.js $NODE_VERSION detected"
@@ -1077,45 +1144,7 @@ if [ "$INSTALL_SCREENSAVER" = true ]; then
     SCREENSAVER_SRC="$SCRIPT_DIR/config/screensaver/screensaver.txt"
     SCREENSAVER_DEST="$HOME/.config/omarchy/branding/screensaver.txt"
 
-    if [ ! -f "$SCREENSAVER_SRC" ]; then
-        print_error "Source screensaver.txt not found at $SCREENSAVER_SRC"
-        print_error "Skipping screensaver configuration..."
-    else
-        # Create destination directory if it doesn't exist
-        mkdir -p "$(dirname "$SCREENSAVER_DEST")"
-
-        if [ -f "$SCREENSAVER_DEST" ]; then
-            # Use diff if cmp is not available
-            if command_exists cmp; then
-                if cmp -s "$SCREENSAVER_SRC" "$SCREENSAVER_DEST"; then
-                    print_skip "Screensaver is already up to date"
-                else
-                    print_step "Backing up existing screensaver.txt..."
-                    BACKUP_FILE=$(create_backup "$SCREENSAVER_DEST")
-                    print_success "Backup created at $BACKUP_FILE"
-                    print_step "Updating screensaver.txt..."
-                    cp "$SCREENSAVER_SRC" "$SCREENSAVER_DEST"
-                    print_success "Screensaver updated"
-                fi
-            else
-                # Fallback to diff if cmp is not available
-                if diff -q "$SCREENSAVER_SRC" "$SCREENSAVER_DEST" >/dev/null 2>&1; then
-                    print_skip "Screensaver is already up to date"
-                else
-                    print_step "Backing up existing screensaver.txt..."
-                    BACKUP_FILE=$(create_backup "$SCREENSAVER_DEST")
-                    print_success "Backup created at $BACKUP_FILE"
-                    print_step "Updating screensaver.txt..."
-                    cp "$SCREENSAVER_SRC" "$SCREENSAVER_DEST"
-                    print_success "Screensaver updated"
-                fi
-            fi
-        else
-            print_step "Copying screensaver.txt to $SCREENSAVER_DEST..."
-            cp "$SCREENSAVER_SRC" "$SCREENSAVER_DEST"
-            print_success "Screensaver configured"
-        fi
-    fi
+    deploy_config_file "$SCREENSAVER_SRC" "$SCREENSAVER_DEST" "screensaver.txt"
 fi
 
 ################################################################################
@@ -1209,83 +1238,13 @@ if [ "$INSTALL_FISH" = true ]; then
     STARSHIP_SRC="$SCRIPT_DIR/config/starship/starship.toml"
     STARSHIP_DEST="$HOME/.config/starship.toml"
 
-    if [ ! -f "$STARSHIP_SRC" ]; then
-        print_error "Source starship.toml not found at $STARSHIP_SRC"
-        print_error "Skipping Starship configuration..."
-    else
-        mkdir -p "$(dirname "$STARSHIP_DEST")"
-
-        if [ -f "$STARSHIP_DEST" ]; then
-            if command_exists cmp; then
-                if cmp -s "$STARSHIP_SRC" "$STARSHIP_DEST"; then
-                    print_skip "Starship configuration is already up to date"
-                else
-                    print_step "Backing up existing starship.toml..."
-                    BACKUP_FILE=$(create_backup "$STARSHIP_DEST")
-                    print_success "Backup created at $BACKUP_FILE"
-                    print_step "Updating starship.toml..."
-                    cp "$STARSHIP_SRC" "$STARSHIP_DEST"
-                    print_success "Starship configuration updated"
-                fi
-            else
-                if diff -q "$STARSHIP_SRC" "$STARSHIP_DEST" >/dev/null 2>&1; then
-                    print_skip "Starship configuration is already up to date"
-                else
-                    print_step "Backing up existing starship.toml..."
-                    BACKUP_FILE=$(create_backup "$STARSHIP_DEST")
-                    print_success "Backup created at $BACKUP_FILE"
-                    print_step "Updating starship.toml..."
-                    cp "$STARSHIP_SRC" "$STARSHIP_DEST"
-                    print_success "Starship configuration updated"
-                fi
-            fi
-        else
-            print_step "Copying starship.toml to $STARSHIP_DEST..."
-            cp "$STARSHIP_SRC" "$STARSHIP_DEST"
-            print_success "Starship prompt configured"
-        fi
-    fi
+    deploy_config_file "$STARSHIP_SRC" "$STARSHIP_DEST" "starship.toml"
 
     # Configure Fish shell with custom config
     FISH_CONFIG_SRC="$SCRIPT_DIR/config/fish/config.fish"
     FISH_CONFIG_DEST="$HOME/.config/fish/config.fish"
 
-    if [ ! -f "$FISH_CONFIG_SRC" ]; then
-        print_error "Source config.fish not found at $FISH_CONFIG_SRC"
-        print_error "Skipping Fish configuration..."
-    else
-        mkdir -p "$(dirname "$FISH_CONFIG_DEST")"
-
-        if [ -f "$FISH_CONFIG_DEST" ]; then
-            if command_exists cmp; then
-                if cmp -s "$FISH_CONFIG_SRC" "$FISH_CONFIG_DEST"; then
-                    print_skip "Fish configuration is already up to date"
-                else
-                    print_step "Backing up existing config.fish..."
-                    BACKUP_FILE=$(create_backup "$FISH_CONFIG_DEST")
-                    print_success "Backup created at $BACKUP_FILE"
-                    print_step "Updating config.fish..."
-                    cp "$FISH_CONFIG_SRC" "$FISH_CONFIG_DEST"
-                    print_success "Fish configuration updated"
-                fi
-            else
-                if diff -q "$FISH_CONFIG_SRC" "$FISH_CONFIG_DEST" >/dev/null 2>&1; then
-                    print_skip "Fish configuration is already up to date"
-                else
-                    print_step "Backing up existing config.fish..."
-                    BACKUP_FILE=$(create_backup "$FISH_CONFIG_DEST")
-                    print_success "Backup created at $BACKUP_FILE"
-                    print_step "Updating config.fish..."
-                    cp "$FISH_CONFIG_SRC" "$FISH_CONFIG_DEST"
-                    print_success "Fish configuration updated"
-                fi
-            fi
-        else
-            print_step "Installing Fish configuration to $FISH_CONFIG_DEST..."
-            cp "$FISH_CONFIG_SRC" "$FISH_CONFIG_DEST"
-            print_success "Fish shell configured"
-        fi
-    fi
+    deploy_config_file "$FISH_CONFIG_SRC" "$FISH_CONFIG_DEST" "config.fish"
 
     echo -e "${GREEN}Fish shell installed successfully!${NC}"
     echo -e "Features included:"
@@ -1389,11 +1348,21 @@ if [ "$INSTALL_PASSWORDLESS_SUDO" = true ]; then
         if sudo grep -q "NOPASSWD: ALL" "$SUDOERS_FILE" 2>/dev/null; then
             print_skip "Passwordless sudo already configured"
         else
-            # File exists but different content - update it
+            # File exists but different content - update it with validation
             print_step "Updating passwordless sudo configuration..."
-            echo "$SUDOERS_CONTENT" | sudo tee "$SUDOERS_FILE" > /dev/null
-            sudo chmod 440 "$SUDOERS_FILE"
-            print_success "Passwordless sudo updated"
+            TEMP_SUDOERS=$(mktemp)
+            echo "$SUDOERS_CONTENT" > "$TEMP_SUDOERS"
+
+            if sudo visudo -c -f "$TEMP_SUDOERS" &>/dev/null; then
+                sudo cp "$TEMP_SUDOERS" "$SUDOERS_FILE"
+                sudo chmod 440 "$SUDOERS_FILE"
+                print_success "Passwordless sudo updated"
+            else
+                print_error "Failed to validate sudoers syntax"
+                rm -f "$TEMP_SUDOERS"
+                exit 1
+            fi
+            rm -f "$TEMP_SUDOERS"
         fi
     else
         print_step "Creating sudoers file for $(whoami)..."
@@ -1409,10 +1378,10 @@ if [ "$INSTALL_PASSWORDLESS_SUDO" = true ]; then
             print_success "Passwordless sudo enabled for $(whoami)"
         else
             print_error "Failed to validate sudoers syntax"
-            rm "$TEMP_SUDOERS"
+            rm -f "$TEMP_SUDOERS"
             exit 1
         fi
-        rm "$TEMP_SUDOERS"
+        rm -f "$TEMP_SUDOERS"
     fi
 fi
 
@@ -1499,45 +1468,7 @@ if [ "$INSTALL_WAYCORNER" = true ]; then
     WAYCORNER_SRC="$SCRIPT_DIR/config/waycorner/config.toml"
     WAYCORNER_DEST="$HOME/.config/waycorner/config.toml"
 
-    if [ ! -f "$WAYCORNER_SRC" ]; then
-        print_error "Source config.toml not found at $WAYCORNER_SRC"
-        print_error "Skipping waycorner configuration..."
-    else
-        # Create destination directory if it doesn't exist
-        mkdir -p "$(dirname "$WAYCORNER_DEST")"
-
-        if [ -f "$WAYCORNER_DEST" ]; then
-            # Use diff if cmp is not available
-            if command_exists cmp; then
-                if cmp -s "$WAYCORNER_SRC" "$WAYCORNER_DEST"; then
-                    print_skip "Waycorner configuration is already up to date"
-                else
-                    print_step "Backing up existing config.toml..."
-                    BACKUP_FILE=$(create_backup "$WAYCORNER_DEST")
-                    print_success "Backup created at $BACKUP_FILE"
-                    print_step "Updating waycorner config.toml..."
-                    cp "$WAYCORNER_SRC" "$WAYCORNER_DEST"
-                    print_success "Waycorner configuration updated"
-                fi
-            else
-                # Fallback to diff if cmp is not available
-                if diff -q "$WAYCORNER_SRC" "$WAYCORNER_DEST" >/dev/null 2>&1; then
-                    print_skip "Waycorner configuration is already up to date"
-                else
-                    print_step "Backing up existing config.toml..."
-                    BACKUP_FILE=$(create_backup "$WAYCORNER_DEST")
-                    print_success "Backup created at $BACKUP_FILE"
-                    print_step "Updating waycorner config.toml..."
-                    cp "$WAYCORNER_SRC" "$WAYCORNER_DEST"
-                    print_success "Waycorner configuration updated"
-                fi
-            fi
-        else
-            print_step "Copying config.toml to $WAYCORNER_DEST..."
-            cp "$WAYCORNER_SRC" "$WAYCORNER_DEST"
-            print_success "Waycorner configured"
-        fi
-    fi
+    deploy_config_file "$WAYCORNER_SRC" "$WAYCORNER_DEST" "waycorner config.toml"
 
     # Add waycorner to Hyprland autostart
     HYPRLAND_AUTOSTART="$HOME/.config/hypr/autostart.conf"
@@ -1595,14 +1526,21 @@ if [ "$INSTALL_WAYBAR" = true ]; then
 
             # Add to modules-right array (look for common module to insert after)
             # Try to insert after group/tray-expander, or bluetooth, or network as fallback
+            MODULE_ADDED=false
             if grep -q '"group/tray-expander"' "$WAYBAR_CONFIG_DEST" 2>/dev/null; then
                 sed -i '/"group\/tray-expander",/a\    "custom/idle-toggle",' "$WAYBAR_CONFIG_DEST"
+                MODULE_ADDED=true
             elif grep -q '"bluetooth"' "$WAYBAR_CONFIG_DEST" 2>/dev/null; then
                 sed -i '/"bluetooth"/i\    "custom/idle-toggle",' "$WAYBAR_CONFIG_DEST"
+                MODULE_ADDED=true
             elif grep -q '"network"' "$WAYBAR_CONFIG_DEST" 2>/dev/null; then
                 sed -i '/"network"/i\    "custom/idle-toggle",' "$WAYBAR_CONFIG_DEST"
-            else
-                print_error "Could not find suitable location in modules-right array"
+                MODULE_ADDED=true
+            fi
+
+            # Verify the module reference was added
+            if [ "$MODULE_ADDED" = true ] && ! grep -q '"custom/idle-toggle"' "$WAYBAR_CONFIG_DEST" 2>/dev/null; then
+                print_error "Failed to add idle-toggle to modules array"
                 print_error "Please manually add \"custom/idle-toggle\" to modules-right"
             fi
 
@@ -1617,7 +1555,13 @@ if [ "$INSTALL_WAYBAR" = true ]; then
                 sed -i '$i\  ,\n  "custom/idle-toggle": {\n    "exec": "$OMARCHY_PATH/default/waybar/indicators/idle-toggle.sh",\n    "on-click": "omarchy-toggle-idle",\n    "return-type": "json",\n    "interval": 3,\n    "signal": 9\n  }' "$WAYBAR_CONFIG_DEST"
             fi
 
-            print_success "Idle toggle module added to waybar config"
+            # Verify the module definition was added
+            if grep -q '"custom/idle-toggle":' "$WAYBAR_CONFIG_DEST" 2>/dev/null; then
+                print_success "Idle toggle module added to waybar config"
+            else
+                print_error "Failed to add idle-toggle module definition"
+                print_error "Please manually add the custom/idle-toggle module to your waybar config"
+            fi
         fi
     fi
 
@@ -1659,42 +1603,9 @@ EOF
     fi
 
     # Install indicator script
-    if [ ! -f "$INDICATOR_SRC" ]; then
-        print_error "Source idle-toggle.sh not found at $INDICATOR_SRC"
-        print_error "Skipping waybar idle toggle indicator..."
-    else
-        # Create destination directory if it doesn't exist
-        mkdir -p "$(dirname "$INDICATOR_DEST")"
+    deploy_config_file "$INDICATOR_SRC" "$INDICATOR_DEST" "idle-toggle.sh" true
 
-        if [ -f "$INDICATOR_DEST" ]; then
-            # Use diff if cmp is not available
-            if command_exists cmp; then
-                if cmp -s "$INDICATOR_SRC" "$INDICATOR_DEST"; then
-                    print_skip "Waybar idle toggle indicator already up to date"
-                else
-                    print_step "Updating idle-toggle.sh..."
-                    cp "$INDICATOR_SRC" "$INDICATOR_DEST"
-                    chmod +x "$INDICATOR_DEST"
-                    print_success "Waybar idle toggle indicator updated"
-                fi
-            else
-                # Fallback to diff if cmp is not available
-                if diff -q "$INDICATOR_SRC" "$INDICATOR_DEST" >/dev/null 2>&1; then
-                    print_skip "Waybar idle toggle indicator already up to date"
-                else
-                    print_step "Updating idle-toggle.sh..."
-                    cp "$INDICATOR_SRC" "$INDICATOR_DEST"
-                    chmod +x "$INDICATOR_DEST"
-                    print_success "Waybar idle toggle indicator updated"
-                fi
-            fi
-        else
-            print_step "Installing idle-toggle.sh to $INDICATOR_DEST..."
-            cp "$INDICATOR_SRC" "$INDICATOR_DEST"
-            chmod +x "$INDICATOR_DEST"
-            print_success "Waybar idle toggle indicator installed"
-        fi
-
+    if [ -f "$INDICATOR_DEST" ]; then
         print_step "Restarting Waybar to apply changes..."
         if command_exists omarchy-restart-waybar; then
             omarchy-restart-waybar &>/dev/null
