@@ -32,6 +32,7 @@ This script automates the installation and configuration of:
 - 🔓 **Passwordless Sudo** - Enable passwordless sudo for the current user
 - 🌐 **Brave Browser** - Privacy-focused web browser set as system default
 - 🐧 **Mainline Kernel** - Latest mainline Linux kernel (Chaotic-AUR)
+- 🌙 **Noctalia Shell** - Modern desktop shell replacing Waybar (Quickshell-based)
 
 ## Prerequisites
 
@@ -86,6 +87,7 @@ chmod +x install.sh
 | `passwordless-sudo` | Enable passwordless sudo for current user | - |
 | `brave` | Install Brave browser and set as default | - |
 | `mainline` | Install and configure mainline kernel | - |
+| `noctalia` | Install Noctalia Shell (replaces Waybar) | `noctalia-shell` |
 
 ### Examples
 
@@ -180,6 +182,35 @@ Installs the Brave web browser from the AUR (brave-bin package) and sets it as t
 
 ### Mainline Kernel
 Installs the latest mainline Linux kernel from Chaotic-AUR. Automatically configures the bootloader to use the new kernel. **Requires reboot** to use the new kernel.
+
+### Noctalia Shell
+Replaces the default Omarchy desktop components (Waybar, Mako, SwayOSD, swaybg) with [Noctalia Shell](https://github.com/noctalia/noctalia-shell), a modern unified desktop shell built on Quickshell.
+
+**Features:**
+- Unified bar, notifications, OSD, and wallpaper management
+- Modern design with smooth animations
+- Lower resource usage than running separate daemons
+
+**Installation:**
+```bash
+./install.sh noctalia
+```
+
+The installer automatically:
+- Installs the `noctalia-shell` package from AUR
+- Disables conflicting Omarchy services (waybar, mako, swayosd, swaybg)
+- Configures Hyprland autostart for Noctalia
+- Adds compatible keybindings for volume/brightness controls
+- Starts Noctalia Shell immediately
+
+**Reverting to Waybar:**
+```bash
+./install.sh uninstall noctalia
+```
+
+This restores the original Omarchy desktop components and removes Noctalia configuration.
+
+**Note:** After Omarchy system updates, you may need to re-run `./install.sh noctalia` to ensure proper configuration.
 
 ## Important Notes
 
