@@ -33,6 +33,7 @@ This script automates the installation and configuration of:
 - 🌐 **Brave Browser** - Privacy-focused web browser set as system default
 - 🐧 **Mainline Kernel** - Latest mainline Linux kernel (Chaotic-AUR)
 - 🌙 **Noctalia Shell** - Modern desktop shell replacing Waybar (Quickshell-based)
+- ✨ **Look'n'Feel** - Improved Hyprland animations (window slides, workspace transitions)
 
 ## Prerequisites
 
@@ -88,6 +89,7 @@ chmod +x install.sh
 | `brave` | Install Brave browser and set as default | - |
 | `mainline` | Install and configure mainline kernel | - |
 | `noctalia` | Install Noctalia Shell (replaces Waybar) | `noctalia-shell` |
+| `looknfeel` | Install improved Hyprland animations | - |
 
 ### Examples
 
@@ -211,6 +213,26 @@ The installer automatically:
 This restores the original Omarchy desktop components and removes Noctalia configuration.
 
 **Note:** After Omarchy system updates, you may need to re-run `./install.sh noctalia` to ensure proper configuration.
+
+### Look'n'Feel (Hyprland Animations)
+Replaces the default Omarchy Hyprland animations with more expressive ones. Deploys custom animation settings to `~/.config/hypr/looknfeel.conf`.
+
+**Features:**
+- **Window animations**: Windows slide in/out with subtle overshoot effect
+- **Workspace transitions**: Smooth slide animation when switching workspaces
+- **Border animation**: Rotating gradient border effect
+- **Layer animations**: Menus and notifications slide in/out smoothly
+- Custom bezier curves for natural-feeling motion
+
+**Installation:**
+```bash
+./install.sh looknfeel
+```
+
+**Reverting:**
+```bash
+./install.sh uninstall looknfeel
+```
 
 ## Important Notes
 

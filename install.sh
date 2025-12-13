@@ -213,6 +213,7 @@ show_usage() {
     echo -e "  ${GREEN}mainline${NC}         Install and configure mainline kernel (Chaotic-AUR)"
     echo -e "  ${GREEN}passwordless-sudo${NC}  Enable passwordless sudo for current user"
     echo -e "  ${GREEN}noctalia${NC}         Install Noctalia Shell (replaces Waybar)"
+    echo -e "  ${GREEN}looknfeel${NC}        Install improved Hyprland animations"
     echo ""
     echo -e "${BOLD}UNINSTALL:${NC}"
     echo -e "  ${YELLOW}uninstall${NC} all              Remove all installed components"
@@ -256,6 +257,7 @@ INSTALL_BRAVE=false
 INSTALL_MAINLINE=false
 INSTALL_PASSWORDLESS_SUDO=false
 INSTALL_NOCTALIA=false
+INSTALL_LOOKNFEEL=false
 
 # Show help if no arguments provided
 if [ $# -eq 0 ]; then
@@ -329,6 +331,9 @@ for arg in "$@"; do
         noctalia|noctalia-shell)
             INSTALL_NOCTALIA=true
             ;;
+        looknfeel)
+            INSTALL_LOOKNFEEL=true
+            ;;
         *)
             print_error "Unknown parameter: $arg"
             echo ""
@@ -351,6 +356,7 @@ if [ "$INSTALL_ALL" = true ]; then
     INSTALL_WAYBAR=true
     INSTALL_SSH=true
     INSTALL_BRAVE=true
+    INSTALL_LOOKNFEEL=true
 fi
 
 ################################################################################
@@ -877,6 +883,29 @@ if [ "$UNINSTALL_MODE" = true ]; then
             else
                 print_skip "Keeping noctalia-shell package"
             fi
+        fi
+    fi
+
+    # Uninstall looknfeel (animations)
+    if [ "$INSTALL_LOOKNFEEL" = true ]; then
+        print_header "Removing Hyprland Animations"
+
+        LOOKNFEEL_DEST="$HOME/.config/hypr/looknfeel.conf"
+
+        if [ -f "$LOOKNFEEL_DEST" ]; then
+            BACKUP=$(ls -t "${LOOKNFEEL_DEST}.bak."* 2>/dev/null | head -1)
+
+            if [ -n "$BACKUP" ]; then
+                print_step "Restoring looknfeel.conf backup from $BACKUP..."
+                cp "$BACKUP" "$LOOKNFEEL_DEST"
+                print_success "Hyprland looknfeel configuration restored"
+            else
+                print_step "Removing looknfeel.conf..."
+                rm "$LOOKNFEEL_DEST"
+                print_success "Hyprland looknfeel configuration removed"
+            fi
+        else
+            print_skip "Hyprland looknfeel configuration not found"
         fi
     fi
 
@@ -1917,6 +1946,27 @@ EOF
 fi
 
 ################################################################################
+# 13. Configure Hyprland Animations (Look'n'Feel)
+################################################################################
+
+if [ "$INSTALL_LOOKNFEEL" = true ]; then
+    print_header "Configuring Hyprland Animations"
+
+    LOOKNFEEL_SRC="$SCRIPT_DIR/config/hyprland/looknfeel.conf"
+    LOOKNFEEL_DEST="$HOME/.config/hypr/looknfeel.conf"
+
+    deploy_config_file "$LOOKNFEEL_SRC" "$LOOKNFEEL_DEST" "looknfeel.conf"
+
+    echo -e "${GREEN}Hyprland animations configured!${NC}"
+    echo -e "Features:"
+    echo -e "  • Window slide-in/out animations with overshoot effect"
+    echo -e "  • Smooth workspace switching with slide transition"
+    echo -e "  • Animated border gradient rotation"
+    echo -e "  • Layer animations for menus and notifications"
+    echo ""
+fi
+
+################################################################################
 # Installation Complete
 ################################################################################
 
@@ -1932,7 +1982,7 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
    [ "$INSTALL_HYPRLAND_BINDINGS" = true ] || \
    [ "$INSTALL_WAYCORNER" = true ] || [ "$INSTALL_WAYBAR" = true ] || \
    [ "$INSTALL_SSH" = true ] || [ "$INSTALL_BRAVE" = true ] || \
-   [ "$INSTALL_NOCTALIA" = true ]; then
+   [ "$INSTALL_NOCTALIA" = true ] || [ "$INSTALL_LOOKNFEEL" = true ]; then
 
     echo -e "${BOLD}Installed/configured components:${NC}"
 
@@ -1989,6 +2039,10 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
 
     if [ "$INSTALL_NOCTALIA" = true ]; then
         echo -e "  • Noctalia Shell (replaces Waybar)"
+    fi
+
+    if [ "$INSTALL_LOOKNFEEL" = true ]; then
+        echo -e "  • Hyprland animations (improved look'n'feel)"
     fi
 
     echo ""
