@@ -212,6 +212,7 @@ show_usage() {
     echo -e "  ${GREEN}brave${NC}            Install Brave browser and set as default"
     echo -e "  ${GREEN}mainline${NC}         Install and configure mainline kernel (Chaotic-AUR)"
     echo -e "  ${GREEN}passwordless-sudo${NC}  Enable passwordless sudo for current user"
+    echo -e "  ${GREEN}noctalia${NC}         Install Noctalia Shell (replaces Waybar)"
     echo ""
     echo -e "${BOLD}UNINSTALL:${NC}"
     echo -e "  ${YELLOW}uninstall${NC} all              Remove all installed components"
@@ -254,6 +255,7 @@ INSTALL_SSH=false
 INSTALL_BRAVE=false
 INSTALL_MAINLINE=false
 INSTALL_PASSWORDLESS_SUDO=false
+INSTALL_NOCTALIA=false
 
 # Show help if no arguments provided
 if [ $# -eq 0 ]; then
@@ -323,6 +325,9 @@ for arg in "$@"; do
             ;;
         passwordless-sudo)
             INSTALL_PASSWORDLESS_SUDO=true
+            ;;
+        noctalia|noctalia-shell)
+            INSTALL_NOCTALIA=true
             ;;
         *)
             print_error "Unknown parameter: $arg"
@@ -787,6 +792,94 @@ if [ "$UNINSTALL_MODE" = true ]; then
         fi
     fi
 
+    # Uninstall Noctalia Shell
+    if [ "$INSTALL_NOCTALIA" = true ]; then
+        print_header "Uninstalling Noctalia Shell"
+
+        # Re-enable default Omarchy autostart in hyprland.conf
+        HYPRLAND_CONF="$HOME/.config/hypr/hyprland.conf"
+        if [ -f "$HYPRLAND_CONF" ] && grep -q "# source = ~/.local/share/omarchy/default/hypr/autostart.conf.*Disabled by Cybex" "$HYPRLAND_CONF"; then
+            print_step "Re-enabling Omarchy default autostart..."
+            sed -i 's|# source = ~/.local/share/omarchy/default/hypr/autostart.conf.*Disabled by Cybex.*|source = ~/.local/share/omarchy/default/hypr/autostart.conf|' "$HYPRLAND_CONF"
+            print_success "Omarchy default autostart re-enabled"
+        else
+            print_skip "Omarchy default autostart already enabled"
+        fi
+
+        # Remove from autostart.conf
+        HYPRLAND_AUTOSTART="$HOME/.config/hypr/autostart.conf"
+        if [ -f "$HYPRLAND_AUTOSTART" ] && grep -q "noctalia-shell" "$HYPRLAND_AUTOSTART"; then
+            print_step "Removing Noctalia Shell from Hyprland autostart..."
+            remove_script_lines "$HYPRLAND_AUTOSTART" "Noctalia Shell"
+            print_success "Noctalia Shell removed from autostart"
+        else
+            print_skip "Noctalia Shell not found in autostart"
+        fi
+
+        # Remove Noctalia keybindings from bindings.conf
+        HYPRLAND_BINDINGS="$HOME/.config/hypr/bindings.conf"
+        if [ -f "$HYPRLAND_BINDINGS" ] && grep -q "Noctalia Shell keybindings" "$HYPRLAND_BINDINGS"; then
+            print_step "Removing Noctalia keybindings..."
+            # Remove the marker and all following bind lines until next blank line or EOF
+            sed -i '/# Added by Cybex - Noctalia Shell keybindings/,/^$/d' "$HYPRLAND_BINDINGS"
+            print_success "Noctalia keybindings removed"
+        fi
+
+        # Kill Noctalia Shell process (quickshell with noctalia-shell config)
+        if pgrep -f "qs.*noctalia-shell" >/dev/null 2>&1; then
+            print_step "Stopping Noctalia Shell..."
+            pkill -f "qs.*noctalia-shell"
+            sleep 0.3
+            print_success "Noctalia Shell stopped"
+        else
+            print_skip "Noctalia Shell is not running"
+        fi
+
+        # Restart Omarchy services that were disabled by Noctalia
+        print_step "Restarting Omarchy services..."
+
+        # Restart Waybar
+        if ! pgrep -x waybar >/dev/null 2>&1; then
+            uwsm-app -- waybar &>/dev/null &
+        fi
+
+        # Restart Mako (notification daemon)
+        if ! pgrep -x mako >/dev/null 2>&1; then
+            uwsm-app -- mako &>/dev/null &
+        fi
+
+        # Restart SwayOSD (volume/brightness OSD)
+        if ! pgrep -x swayosd-server >/dev/null 2>&1; then
+            uwsm-app -- swayosd-server &>/dev/null &
+        fi
+
+        # Restart swaybg (wallpaper)
+        if ! pgrep -x swaybg >/dev/null 2>&1; then
+            uwsm-app -- swaybg -m fill -i "$HOME/.local/share/omarchy/wallpaper" &>/dev/null &
+        fi
+
+        sleep 0.5
+        if pgrep -x waybar >/dev/null 2>&1; then
+            print_success "Omarchy services restarted (waybar, mako, swayosd, swaybg)"
+        else
+            print_skip "Some services may need manual restart or session reload"
+        fi
+
+        # Optionally remove package
+        if package_installed "noctalia-shell"; then
+            echo ""
+            read -p "Remove noctalia-shell package? (y/N): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                print_step "Removing noctalia-shell package..."
+                yay -R --noconfirm noctalia-shell
+                print_success "noctalia-shell package removed"
+            else
+                print_skip "Keeping noctalia-shell package"
+            fi
+        fi
+    fi
+
     print_header "Uninstall Complete!"
     echo -e "${GREEN}Selected components have been uninstalled.${NC}\n"
 
@@ -821,7 +914,7 @@ if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTA
 fi
 
 # Components that require internet
-if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_WAYCORNER" = true ] || [ "$INSTALL_BRAVE" = true ]; then
+if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_WAYCORNER" = true ] || [ "$INSTALL_BRAVE" = true ] || [ "$INSTALL_NOCTALIA" = true ]; then
     NEED_INTERNET=true
 fi
 
@@ -1701,6 +1794,128 @@ EOF
     echo -e "Note: You may need to restart your session for the BROWSER change to take effect.\n"
 fi
 
+# ============================================================================
+# NOCTALIA SHELL
+# ============================================================================
+if [ "$INSTALL_NOCTALIA" = true ]; then
+    print_header "Installing Noctalia Shell"
+
+    HYPRLAND_AUTOSTART="$HOME/.config/hypr/autostart.conf"
+
+    # Install package if not present
+    if ! package_installed "noctalia-shell"; then
+        print_step "Installing noctalia-shell package..."
+        yay -S --needed --noconfirm noctalia-shell
+        print_success "noctalia-shell package installed"
+    else
+        print_skip "noctalia-shell package already installed"
+    fi
+
+    # Disable default Omarchy autostart in hyprland.conf (prevents waybar/mako/swayosd/swaybg from starting)
+    HYPRLAND_CONF="$HOME/.config/hypr/hyprland.conf"
+    if [ -f "$HYPRLAND_CONF" ] && grep -q "^source = ~/.local/share/omarchy/default/hypr/autostart.conf" "$HYPRLAND_CONF"; then
+        print_step "Disabling Omarchy default autostart..."
+        sed -i 's|^source = ~/.local/share/omarchy/default/hypr/autostart.conf|# source = ~/.local/share/omarchy/default/hypr/autostart.conf  # Disabled by Cybex - Noctalia Shell|' "$HYPRLAND_CONF"
+        print_success "Omarchy default autostart disabled"
+    elif grep -q "Disabled by Cybex - Noctalia Shell" "$HYPRLAND_CONF" 2>/dev/null; then
+        print_skip "Omarchy default autostart already disabled"
+    else
+        print_skip "Omarchy default autostart line not found"
+    fi
+
+    # Configure autostart if not already done
+    if grep -q "noctalia-shell" "$HYPRLAND_AUTOSTART" 2>/dev/null; then
+        print_skip "Noctalia Shell already configured in autostart"
+    else
+        # Create autostart.conf if it doesn't exist
+        mkdir -p "$(dirname "$HYPRLAND_AUTOSTART")"
+        touch "$HYPRLAND_AUTOSTART"
+
+        # Add non-conflicting Omarchy autostart items + Noctalia
+        print_step "Configuring Noctalia Shell autostart..."
+        cat >> "$HYPRLAND_AUTOSTART" << 'EOF'
+
+# Added by Cybex - Noctalia Shell (replaces Omarchy default autostart)
+exec-once = uwsm-app -- hypridle
+exec-once = uwsm-app -- fcitx5
+exec-once = /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+exec-once = omarchy-cmd-first-run
+exec-once = systemctl --user import-environment $(env | cut -d'=' -f 1)
+exec-once = dbus-update-activation-environment --systemd --all
+exec-once = uwsm-app -- qs -c noctalia-shell
+EOF
+        print_success "Noctalia Shell added to autostart"
+    fi
+
+    # Add Noctalia-compatible keybindings for volume/brightness (replaces swayosd-client)
+    HYPRLAND_BINDINGS="$HOME/.config/hypr/bindings.conf"
+    if grep -q "Noctalia Shell keybindings" "$HYPRLAND_BINDINGS" 2>/dev/null; then
+        print_skip "Noctalia keybindings already configured"
+    else
+        print_step "Adding Noctalia-compatible keybindings..."
+        mkdir -p "$(dirname "$HYPRLAND_BINDINGS")"
+        cat >> "$HYPRLAND_BINDINGS" << 'EOF'
+
+# Added by Cybex - Noctalia Shell keybindings
+# These override the default swayosd-client bindings to work with Noctalia's OSD
+bindeld = ,XF86AudioRaiseVolume, Volume up, exec, wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+
+bindeld = ,XF86AudioLowerVolume, Volume down, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+bindeld = ,XF86AudioMute, Mute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+bindeld = ,XF86AudioMicMute, Mute microphone, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+bindeld = ,XF86MonBrightnessUp, Brightness up, exec, brightnessctl set 5%+
+bindeld = ,XF86MonBrightnessDown, Brightness down, exec, brightnessctl set 5%-
+bindld = ,XF86AudioPlay, Play/Pause, exec, playerctl play-pause
+bindld = ,XF86AudioPause, Pause, exec, playerctl play-pause
+bindld = ,XF86AudioNext, Next track, exec, playerctl next
+bindld = ,XF86AudioPrev, Previous track, exec, playerctl previous
+EOF
+        print_success "Noctalia keybindings added"
+    fi
+
+    # Kill conflicting Omarchy services (waybar, mako, swayosd-server, swaybg)
+    # These are started by the base Omarchy autostart and conflict with Noctalia's built-in features
+    NEED_RESTART=false
+    if pgrep -x waybar >/dev/null 2>&1; then
+        pkill -x waybar 2>/dev/null || true
+        NEED_RESTART=true
+    fi
+    if pgrep -x mako >/dev/null 2>&1; then
+        pkill -x mako 2>/dev/null || true
+        NEED_RESTART=true
+    fi
+    if pgrep -x swayosd-server >/dev/null 2>&1; then
+        pkill -x swayosd-server 2>/dev/null || true
+        NEED_RESTART=true
+    fi
+    if pgrep -x swaybg >/dev/null 2>&1; then
+        pkill -x swaybg 2>/dev/null || true
+        NEED_RESTART=true
+    fi
+
+    # Ensure Noctalia is running
+    if [ "$NEED_RESTART" = true ]; then
+        print_step "Switching to Noctalia Shell..."
+        pkill -f "qs.*noctalia-shell" 2>/dev/null || true  # Kill any existing instance to avoid duplicates
+        sleep 0.3
+        uwsm-app -- qs -c noctalia-shell &>/dev/null &
+        print_success "Noctalia Shell activated (replaced waybar, mako, swayosd, swaybg)"
+    elif ! pgrep -f "qs.*noctalia-shell" >/dev/null 2>&1; then
+        print_step "Starting Noctalia Shell..."
+        uwsm-app -- qs -c noctalia-shell &>/dev/null &
+        print_success "Noctalia Shell started"
+    else
+        print_skip "Noctalia Shell is already running"
+    fi
+
+    echo ""
+    echo -e "${GREEN}Noctalia Shell installed!${NC}"
+    echo -e "Notes:"
+    echo -e "  • Waybar has been replaced with Noctalia Shell"
+    echo -e "  • After Omarchy updates, re-run: ${CYAN}./install.sh noctalia${NC}"
+    echo -e "  • To restore Waybar: ${CYAN}./install.sh uninstall noctalia${NC}"
+    echo ""
+fi
+
 ################################################################################
 # Installation Complete
 ################################################################################
@@ -1716,7 +1931,8 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
    [ "$INSTALL_FISH" = true ] || \
    [ "$INSTALL_HYPRLAND_BINDINGS" = true ] || \
    [ "$INSTALL_WAYCORNER" = true ] || [ "$INSTALL_WAYBAR" = true ] || \
-   [ "$INSTALL_SSH" = true ] || [ "$INSTALL_BRAVE" = true ]; then
+   [ "$INSTALL_SSH" = true ] || [ "$INSTALL_BRAVE" = true ] || \
+   [ "$INSTALL_NOCTALIA" = true ]; then
 
     echo -e "${BOLD}Installed/configured components:${NC}"
 
@@ -1769,6 +1985,10 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
 
     if [ "$INSTALL_BRAVE" = true ]; then
         echo -e "  • Brave browser (set as default)"
+    fi
+
+    if [ "$INSTALL_NOCTALIA" = true ]; then
+        echo -e "  • Noctalia Shell (replaces Waybar)"
     fi
 
     echo ""
