@@ -26,7 +26,7 @@ pub fn run_install_command(
     uninstall: bool,
     event_tx: Sender<InstallerEvent>,
 ) {
-    let install_script = script_dir.join("install.sh");
+    let install_script = script_dir.join("install");
     let script_dir = script_dir.to_path_buf();
     let option_id = option_id.to_string();
 

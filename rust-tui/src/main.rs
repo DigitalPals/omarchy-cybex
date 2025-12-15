@@ -35,10 +35,10 @@ fn main() -> Result<()> {
         .map(PathBuf::from)
         .unwrap_or_else(|| env::current_dir().expect("Failed to get current directory"));
 
-    // Verify install.sh exists
-    let install_script = script_dir.join("install.sh");
+    // Verify install script exists
+    let install_script = script_dir.join("install");
     if !install_script.exists() {
-        eprintln!("Error: install.sh not found in {:?}", script_dir);
+        eprintln!("Error: install not found in {:?}", script_dir);
         eprintln!("Usage: {} [script_dir]", env::args().next().unwrap_or_default());
         std::process::exit(1);
     }

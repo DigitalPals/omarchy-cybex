@@ -8,11 +8,11 @@
 # It is designed to be idempotent - safe to run multiple times.
 #
 # Usage:
-#   ./install.sh                - Launch interactive TUI installer
-#   ./install.sh all            - Install everything except mainline kernel
-#   ./install.sh claude ssh     - Install specific components
-#   ./install.sh mainline       - Install mainline kernel only
-#   ./install.sh --help         - Show CLI help and available options
+#   ./install                - Launch interactive TUI installer
+#   ./install all            - Install everything except mainline kernel
+#   ./install claude ssh     - Install specific components
+#   ./install mainline       - Install mainline kernel only
+#   ./install --help         - Show CLI help and available options
 #
 # Run without arguments to launch the TUI installer.
 ################################################################################
@@ -75,7 +75,7 @@ if [ $# -eq 0 ]; then
             echo -e "${YELLOW}⚠${NC} Python 3 is required for the TUI installer."
             echo -e "Install with: ${CYAN}sudo pacman -S python${NC}"
             echo ""
-            echo -e "Alternatively, use CLI mode: ${CYAN}./install.sh --help${NC}"
+            echo -e "Alternatively, use CLI mode: ${CYAN}./install --help${NC}"
             exit 1
         fi
 
@@ -1161,13 +1161,13 @@ if [ "$INSTALL_CLAUDE" = true ]; then
 
         # Download installer to temp file first (safer than pipe-to-bash)
         CLAUDE_INSTALLER=$(mktemp)
-        if curl -fsSL https://claude.ai/install.sh -o "$CLAUDE_INSTALLER"; then
+        if curl -fsSL https://claude.ai/install -o "$CLAUDE_INSTALLER"; then
             chmod +x "$CLAUDE_INSTALLER"
             if bash "$CLAUDE_INSTALLER"; then
                 print_success "Claude Code installed successfully"
             else
                 print_error "Failed to install Claude Code"
-                print_error "Please try running manually: curl -fsSL https://claude.ai/install.sh | bash"
+                print_error "Please try running manually: curl -fsSL https://claude.ai/install | bash"
                 rm -f "$CLAUDE_INSTALLER"
                 exit 1
             fi
@@ -1212,7 +1212,7 @@ if [ "$INSTALL_CODEX" = true ]; then
     print_step "Checking Node.js version..."
     if ! command_exists node; then
         print_error "Node.js is not installed but should be available with npm package"
-        print_error "Please ensure Node.js is installed or run: ./install.sh packages codex"
+        print_error "Please ensure Node.js is installed or run: ./install packages codex"
         exit 1
     fi
 
@@ -1940,8 +1940,8 @@ EOF
     echo -e "${GREEN}Noctalia Shell installed!${NC}"
     echo -e "Notes:"
     echo -e "  • Waybar has been replaced with Noctalia Shell"
-    echo -e "  • After Omarchy updates, re-run: ${CYAN}./install.sh noctalia${NC}"
-    echo -e "  • To restore Waybar: ${CYAN}./install.sh uninstall noctalia${NC}"
+    echo -e "  • After Omarchy updates, re-run: ${CYAN}./install noctalia${NC}"
+    echo -e "  • To restore Waybar: ${CYAN}./install uninstall noctalia${NC}"
     echo ""
 fi
 

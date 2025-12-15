@@ -54,19 +54,20 @@ git clone https://github.com/DigitalPals/omarchy-cybex.git
 cd omarchy-cybex
 
 # Make the script executable
-chmod +x install.sh
+chmod +x install
 
-# Install everything (except mainline kernel)
-./install.sh all
+# Launch the TUI installer
+./install
 
-# Or install specific components
-./install.sh claude ssh fish
+# Or install specific components via CLI
+./install claude ssh fish
 ```
 
 ## Usage
 
 ```bash
-./install.sh [OPTION]...
+./install              # Launch interactive TUI
+./install [OPTION]...  # CLI mode
 ```
 
 ### Available Options
@@ -92,23 +93,26 @@ chmod +x install.sh
 ### Examples
 
 ```bash
+# Launch interactive TUI installer
+./install
+
 # Show help and available options
-./install.sh
+./install --help
 
 # Install everything except mainline kernel
-./install.sh all
+./install all
 
 # Install Claude Code and generate SSH key
-./install.sh claude ssh
+./install claude ssh
 
 # Install Fish shell and Codex CLI
-./install.sh fish codex
+./install fish codex
 
 # Install multiple specific components
-./install.sh claude codex ssh brave
+./install claude codex ssh brave
 
 # Install mainline kernel only
-./install.sh mainline
+./install mainline
 ```
 
 ## Component Details
@@ -188,7 +192,7 @@ Replaces the default Omarchy desktop components (Waybar, Mako, SwayOSD, swaybg) 
 
 **Installation:**
 ```bash
-./install.sh noctalia
+./install noctalia
 ```
 
 The installer automatically:
@@ -200,12 +204,12 @@ The installer automatically:
 
 **Reverting to Waybar:**
 ```bash
-./install.sh uninstall noctalia
+./install uninstall noctalia
 ```
 
 This restores the original Omarchy desktop components and removes Noctalia configuration.
 
-**Note:** After Omarchy system updates, you may need to re-run `./install.sh noctalia` to ensure proper configuration.
+**Note:** After Omarchy system updates, you may need to re-run `./install noctalia` to ensure proper configuration.
 
 ### Look'n'Feel (Hyprland Animations)
 Replaces the default Omarchy Hyprland animations with more expressive ones. Deploys custom animation settings to `~/.config/hypr/looknfeel.conf`.
@@ -219,12 +223,12 @@ Replaces the default Omarchy Hyprland animations with more expressive ones. Depl
 
 **Installation:**
 ```bash
-./install.sh looknfeel
+./install looknfeel
 ```
 
 **Reverting:**
 ```bash
-./install.sh uninstall looknfeel
+./install uninstall looknfeel
 ```
 
 ## Important Notes
@@ -256,7 +260,7 @@ After running the script:
 
 ## Troubleshooting
 
-- **Permission denied**: Ensure the script is executable with `chmod +x install.sh`
+- **Permission denied**: Ensure the script is executable with `chmod +x install`
 - **Command not found**: After installing CLI tools, restart your shell or run `source ~/.bashrc`
 - **Boot issues**: If the mainline kernel causes problems, select the default kernel from the boot menu
 
