@@ -46,6 +46,18 @@ This script automates the installation and configuration of:
 > - **JetBrainsMono Nerd Font** is now the default font
 > - **macOS-style keyboard shortcuts** are built-in
 
+## Interactive TUI Installer
+
+The installer features a modern terminal user interface (TUI) for easy component selection and installation.
+
+![Omarchy Cybex TUI Installer](screenshot.png)
+
+**TUI Features:**
+- Browse and select components with keyboard navigation
+- Real-time installation output with progress feedback
+- Install or uninstall components with a single keypress
+- Spacebar to toggle selection, Enter to install/uninstall
+
 ## Quick Start
 
 ```bash
