@@ -52,6 +52,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ################################################################################
 
 if [ $# -eq 0 ]; then
+    RUST_TUI="$SCRIPT_DIR/rust-tui/target/release/omarchy-cybex-installer"
+
+    # Prefer Rust TUI if available
+    if [ -x "$RUST_TUI" ]; then
+        exec "$RUST_TUI" "$SCRIPT_DIR"
+    fi
+
+    # Fall back to Python TUI
     TUI_DIR="$SCRIPT_DIR/tui"
     VENV_DIR="$SCRIPT_DIR/.venv"
 

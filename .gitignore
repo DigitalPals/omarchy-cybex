@@ -6,6 +6,10 @@
 __pycache__/
 *.pyc
 
+# Rust build artifacts
+rust-tui/target/
+rust-tui/Cargo.lock
+
 # Editor and IDE files
 .vscode/
 .idea/

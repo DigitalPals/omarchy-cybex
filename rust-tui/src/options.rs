@@ -1,0 +1,128 @@
+//! Installation options with metadata
+
+/// Represents a single installation option
+#[derive(Debug, Clone)]
+pub struct InstallOption {
+    pub id: &'static str,
+    pub name: &'static str,
+    pub description: &'static str,
+    pub category: &'static str,
+    pub requires_reboot: bool,
+    pub excluded_from_all: bool,
+}
+
+/// All available installation options
+pub const OPTIONS: &[InstallOption] = &[
+    InstallOption {
+        id: "claude",
+        name: "Claude Code",
+        description: "Anthropic's AI coding assistant CLI",
+        category: "AI Tools",
+        requires_reboot: false,
+        excluded_from_all: false,
+    },
+    InstallOption {
+        id: "codex",
+        name: "Codex CLI",
+        description: "OpenAI's Codex command-line interface",
+        category: "AI Tools",
+        requires_reboot: false,
+        excluded_from_all: false,
+    },
+    InstallOption {
+        id: "screensaver",
+        name: "Custom Screensaver",
+        description: "Personalized ASCII art screensaver",
+        category: "Customization",
+        requires_reboot: false,
+        excluded_from_all: false,
+    },
+    InstallOption {
+        id: "plymouth",
+        name: "Plymouth Theme",
+        description: "Cybex boot splash theme",
+        category: "System",
+        requires_reboot: true,
+        excluded_from_all: false,
+    },
+    InstallOption {
+        id: "fish",
+        name: "Fish Shell",
+        description: "Modern shell with Starship prompt",
+        category: "Shell",
+        requires_reboot: false,
+        excluded_from_all: false,
+    },
+    InstallOption {
+        id: "hyprland",
+        name: "Hyprland Bindings",
+        description: "Custom key bindings and input config",
+        category: "Desktop",
+        requires_reboot: false,
+        excluded_from_all: false,
+    },
+    InstallOption {
+        id: "waycorner",
+        name: "Hot Corners",
+        description: "macOS-style hot corners for Hyprland",
+        category: "Desktop",
+        requires_reboot: false,
+        excluded_from_all: false,
+    },
+    InstallOption {
+        id: "waybar",
+        name: "Waybar Idle Toggle",
+        description: "Click to toggle idle lock indicator",
+        category: "Desktop",
+        requires_reboot: false,
+        excluded_from_all: false,
+    },
+    InstallOption {
+        id: "ssh",
+        name: "SSH Key",
+        description: "Generate SSH key for GitHub",
+        category: "Security",
+        requires_reboot: false,
+        excluded_from_all: false,
+    },
+    InstallOption {
+        id: "passwordless-sudo",
+        name: "Passwordless Sudo",
+        description: "Enable passwordless sudo for user",
+        category: "Security",
+        requires_reboot: false,
+        excluded_from_all: true,
+    },
+    InstallOption {
+        id: "brave",
+        name: "Brave Browser",
+        description: "Privacy-focused browser as default",
+        category: "Applications",
+        requires_reboot: false,
+        excluded_from_all: false,
+    },
+    InstallOption {
+        id: "mainline",
+        name: "Mainline Kernel",
+        description: "Latest mainline Linux kernel",
+        category: "System",
+        requires_reboot: true,
+        excluded_from_all: true,
+    },
+    InstallOption {
+        id: "noctalia",
+        name: "Noctalia Shell",
+        description: "Modern desktop shell (replaces Waybar)",
+        category: "Desktop",
+        requires_reboot: false,
+        excluded_from_all: false,
+    },
+    InstallOption {
+        id: "looknfeel",
+        name: "Animations",
+        description: "Improved Hyprland window animations",
+        category: "Customization",
+        requires_reboot: false,
+        excluded_from_all: false,
+    },
+];

@@ -1,0 +1,30 @@
+[package]
+name = "omarchy-cybex-installer"
+version = "0.1.0"
+edition = "2021"
+description = "TUI installer for Omarchy Cybex customizations"
+license = "MIT"
+
+[dependencies]
+# TUI Framework
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Async runtime for subprocess handling
+tokio = { version = "1.0", features = ["full", "process"] }
+
+# State persistence
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+color-eyre = "0.6"
+
+# Directory utilities
+dirs = "5.0"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
