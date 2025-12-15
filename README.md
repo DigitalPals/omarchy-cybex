@@ -18,7 +18,6 @@ A post-installation setup script for **Omarchy Linux** (optimized for version 3.
 
 This script automates the installation and configuration of:
 
-- 📦 **System Packages** - Essential tools (npm, nano)
 - 🤖 **Claude Code** - Anthropic's AI-powered coding assistant CLI
 - 💻 **Codex CLI** - OpenAI's Codex command-line interface
 - 🎨 **Custom Screensaver** - Personalized ASCII art screensaver
@@ -75,7 +74,6 @@ chmod +x install.sh
 | Option | Description | Alias |
 |--------|-------------|-------|
 | `all` | Install all components (except mainline kernel) | - |
-| `packages` | Install system packages (npm, nano) | - |
 | `claude` | Install Claude Code CLI | - |
 | `codex` | Install OpenAI Codex CLI | - |
 | `screensaver` | Configure custom screensaver | - |
@@ -107,18 +105,13 @@ chmod +x install.sh
 ./install.sh fish codex
 
 # Install multiple specific components
-./install.sh packages claude codex ssh brave
+./install.sh claude codex ssh brave
 
 # Install mainline kernel only
 ./install.sh mainline
 ```
 
 ## Component Details
-
-### System Packages
-Installs essential development tools:
-- **npm** - Node.js package manager
-- **nano** - Text editor
 
 ### Claude Code
 Installs Anthropic's Claude Code CLI using the official installer (`curl -fsSL https://claude.ai/install.sh | bash`). The installer automatically updates your `~/.bashrc` with the necessary PATH configuration and reloads it.

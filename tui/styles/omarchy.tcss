@@ -1,0 +1,234 @@
+/* Catppuccin Mocha Theme */
+
+/* Catppuccin Mocha color palette */
+$rosewater: #f5e0dc;
+$flamingo: #f2cdcd;
+$pink: #f5c2e7;
+$mauve: #cba6f7;
+$red: #f38ba8;
+$maroon: #eba0ac;
+$peach: #fab387;
+$yellow: #f9e2af;
+$green: #a6e3a1;
+$teal: #94e2d5;
+$sky: #89dceb;
+$sapphire: #74c7ec;
+$blue: #89b4fa;
+$lavender: #b4befe;
+$text: #cdd6f4;
+$subtext1: #bac2de;
+$subtext0: #a6adc8;
+$overlay2: #9399b2;
+$overlay1: #7f849c;
+$overlay0: #6c7086;
+$surface2: #585b70;
+$surface1: #45475a;
+$surface0: #313244;
+$base: #1e1e2e;
+$mantle: #181825;
+$crust: #11111b;
+
+/* Main screen */
+Screen {
+    background: $base;
+}
+
+/* Header banner */
+#header-banner {
+    dock: top;
+    height: auto;
+    padding: 0 1;
+    color: $mauve;
+    background: $mantle;
+    border-bottom: solid $surface0;
+}
+
+/* Footer with key bindings */
+#footer {
+    dock: bottom;
+    height: 1;
+    background: $mantle;
+    border-top: solid $surface0;
+}
+
+#footer-keys {
+    width: 100%;
+    text-align: center;
+    color: $text;
+}
+
+.key {
+    color: $mauve;
+}
+
+/* Status bar */
+#status-bar {
+    dock: bottom;
+    height: 1;
+    padding: 0 2;
+    background: $mantle;
+    border-top: solid $surface0;
+}
+
+#status-text {
+    color: $yellow;
+}
+
+/* Option list container */
+#option-container {
+    margin: 1 2;
+    border: round $mauve;
+    padding: 0 1;
+    background: $mantle;
+}
+
+#option-list {
+    scrollbar-background: $base;
+    scrollbar-color: $mauve;
+    scrollbar-color-hover: $pink;
+    scrollbar-color-active: $pink;
+}
+
+/* Individual option items */
+.option-item {
+    height: 1;
+    padding: 0 1;
+}
+
+.option-item:hover {
+    background: $surface0;
+}
+
+.option-item:focus {
+    background: rgba(203, 166, 247, 0.15);
+}
+
+.option-item.--highlight {
+    background: rgba(137, 180, 250, 0.1);
+}
+
+/* Checkbox styling */
+.checkbox {
+    color: $mauve;
+    width: 4;
+}
+
+.checkbox.--checked {
+    color: $green;
+}
+
+/* Option name */
+.option-name {
+    color: $text;
+    width: 20;
+}
+
+/* Option description */
+.option-desc {
+    color: $subtext0;
+}
+
+/* Status indicator */
+.status {
+    width: 8;
+    text-align: right;
+}
+
+.status.--pending {
+    color: $overlay0;
+}
+
+.status.--installing {
+    color: $yellow;
+}
+
+.status.--installed {
+    color: $green;
+}
+
+.status.--failed {
+    color: $red;
+}
+
+/* Category headers */
+.category-header {
+    height: 1;
+    padding: 0 1;
+    color: $pink;
+    text-style: bold;
+    background: transparent;
+}
+
+/* Modal dialog */
+InstallModal {
+    align: center middle;
+}
+
+#modal-container {
+    width: 85%;
+    height: 85%;
+    background: $base;
+    border: thick $mauve;
+    padding: 0;
+}
+
+#modal-header {
+    dock: top;
+    height: 3;
+    padding: 1;
+    text-align: center;
+    background: $mantle;
+    color: $pink;
+    text-style: bold;
+    border-bottom: solid $surface0;
+}
+
+#output-log {
+    margin: 1;
+    border: round $mauve;
+    background: $crust;
+    scrollbar-background: $base;
+    scrollbar-color: $mauve;
+}
+
+#modal-footer {
+    dock: bottom;
+    height: 3;
+    align: center middle;
+    background: $mantle;
+    border-top: solid $surface0;
+}
+
+/* Buttons */
+Button {
+    margin: 0 2;
+    min-width: 12;
+}
+
+Button:focus {
+    text-style: bold;
+}
+
+Button.-primary {
+    background: $mauve;
+    color: $crust;
+}
+
+Button.-primary:hover {
+    background: $pink;
+}
+
+Button.-primary:focus {
+    background: $pink;
+}
+
+Button:disabled {
+    background: $surface1;
+    color: $overlay0;
+}
+
+/* Loading indicator */
+.loading {
+    text-style: italic;
+    color: $yellow;
+}

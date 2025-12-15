@@ -1,0 +1,1 @@
+"""Omarchy Cybex TUI Installer"""

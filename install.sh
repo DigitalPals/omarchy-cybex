@@ -8,12 +8,13 @@
 # It is designed to be idempotent - safe to run multiple times.
 #
 # Usage:
-#   ./install.sh                - Show help and available options
+#   ./install.sh                - Launch interactive TUI installer
 #   ./install.sh all            - Install everything except mainline kernel
 #   ./install.sh claude ssh     - Install specific components
 #   ./install.sh mainline       - Install mainline kernel only
+#   ./install.sh --help         - Show CLI help and available options
 #
-# Run without arguments to see all available options.
+# Run without arguments to launch the TUI installer.
 ################################################################################
 
 set -e  # Exit on error
@@ -45,6 +46,47 @@ MIN_NODE_VERSION=14
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+################################################################################
+# TUI Bootstrap - Launch TUI when no arguments provided
+################################################################################
+
+if [ $# -eq 0 ]; then
+    TUI_DIR="$SCRIPT_DIR/tui"
+    VENV_DIR="$SCRIPT_DIR/.venv"
+
+    # Check if TUI directory exists
+    if [ ! -d "$TUI_DIR" ]; then
+        echo -e "${RED}✗${NC} TUI directory not found at $TUI_DIR"
+        echo -e "Falling back to CLI mode. Run with --help for options."
+        echo ""
+        # Fall through to show_usage below
+    else
+        # Check if Python 3 is available
+        if ! command -v python3 &>/dev/null; then
+            echo -e "${YELLOW}⚠${NC} Python 3 is required for the TUI installer."
+            echo -e "Install with: ${CYAN}sudo pacman -S python${NC}"
+            echo ""
+            echo -e "Alternatively, use CLI mode: ${CYAN}./install.sh --help${NC}"
+            exit 1
+        fi
+
+        # Create venv if it doesn't exist
+        if [ ! -d "$VENV_DIR" ]; then
+            echo -e "${CYAN}▶${NC} Setting up TUI environment (first run)..."
+            python3 -m venv "$VENV_DIR"
+            "$VENV_DIR/bin/pip" install --quiet --upgrade pip
+            echo -e "${CYAN}▶${NC} Installing Textual..."
+            "$VENV_DIR/bin/pip" install --quiet textual
+            echo -e "${GREEN}✓${NC} TUI environment ready!"
+            echo ""
+        fi
+
+        # Launch TUI (run as module for proper imports)
+        cd "$SCRIPT_DIR"
+        exec "$VENV_DIR/bin/python" -m tui.main "$SCRIPT_DIR"
+    fi
+fi
 
 ################################################################################
 # Helper Functions
@@ -199,7 +241,6 @@ show_usage() {
     echo ""
     echo -e "${BOLD}OPTIONS:${NC}"
     echo -e "  ${GREEN}all${NC}              Install all components (except mainline kernel)"
-    echo -e "  ${GREEN}packages${NC}         Install system packages (npm, nano)"
     echo -e "  ${GREEN}claude${NC}           Install Claude Code CLI"
     echo -e "  ${GREEN}codex${NC}            Install OpenAI Codex CLI"
     echo -e "  ${GREEN}screensaver${NC}      Configure custom screensaver"
@@ -243,7 +284,6 @@ show_usage() {
 # Initialize mode and flags
 UNINSTALL_MODE=false
 INSTALL_ALL=false
-INSTALL_PACKAGES=false
 INSTALL_CLAUDE=false
 INSTALL_CODEX=false
 INSTALL_SCREENSAVER=false
@@ -259,8 +299,8 @@ INSTALL_PASSWORDLESS_SUDO=false
 INSTALL_NOCTALIA=false
 INSTALL_LOOKNFEEL=false
 
-# Show help if no arguments provided
-if [ $# -eq 0 ]; then
+# Show help if --help is provided
+if [ "$1" = "--help" ] || [ "$1" = "-h" ] || [ "$1" = "help" ]; then
     show_usage
     exit 0
 fi
@@ -284,9 +324,6 @@ for arg in "$@"; do
     case "$arg" in
         all)
             INSTALL_ALL=true
-            ;;
-        packages)
-            INSTALL_PACKAGES=true
             ;;
         claude)
             INSTALL_CLAUDE=true
@@ -345,7 +382,6 @@ done
 
 # If 'all' is specified, enable everything except mainline
 if [ "$INSTALL_ALL" = true ]; then
-    INSTALL_PACKAGES=true
     INSTALL_CLAUDE=true
     INSTALL_CODEX=true
     INSTALL_SCREENSAVER=true
@@ -371,30 +407,6 @@ if [ "$UNINSTALL_MODE" = true ]; then
         print_error "Please do not run this script as root or with sudo."
         print_error "The script will request sudo when needed."
         exit 1
-    fi
-
-    # Uninstall packages
-    if [ "$INSTALL_PACKAGES" = true ]; then
-        print_header "Uninstalling System Packages"
-
-        PACKAGES=("npm" "nano")
-
-        echo -e "${YELLOW}Warning: This will remove npm and nano packages.${NC}"
-        read -p "Are you sure you want to continue? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            for pkg in "${PACKAGES[@]}"; do
-                if package_installed "$pkg"; then
-                    print_step "Removing $pkg..."
-                    sudo pacman -R --noconfirm "$pkg"
-                    print_success "$pkg removed"
-                else
-                    print_skip "$pkg is not installed"
-                fi
-            done
-        else
-            print_skip "Skipping package removal"
-        fi
     fi
 
     # Uninstall Claude Code
@@ -938,12 +950,12 @@ NEED_INTERNET=false
 NEED_DISK_SPACE=false
 
 # Components that require sudo
-if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || [ "$INSTALL_BRAVE" = true ]; then
+if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || [ "$INSTALL_BRAVE" = true ]; then
     NEED_SUDO=true
 fi
 
 # Components that require internet
-if [ "$INSTALL_PACKAGES" = true ] || [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_WAYCORNER" = true ] || [ "$INSTALL_BRAVE" = true ] || [ "$INSTALL_NOCTALIA" = true ]; then
+if [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_WAYCORNER" = true ] || [ "$INSTALL_BRAVE" = true ] || [ "$INSTALL_NOCTALIA" = true ]; then
     NEED_INTERNET=true
 fi
 
@@ -1126,27 +1138,7 @@ Include = /etc/pacman.d/chaotic-mirrorlist' | sudo tee -a /etc/pacman.conf >/dev
 fi
 
 ################################################################################
-# 1. Install System Packages
-################################################################################
-
-if [ "$INSTALL_PACKAGES" = true ]; then
-    print_header "Installing System Packages"
-
-    PACKAGES=("npm" "nano")
-
-    for pkg in "${PACKAGES[@]}"; do
-        if package_installed "$pkg"; then
-            print_skip "$pkg is already installed"
-        else
-            print_step "Installing $pkg..."
-            sudo pacman -S --noconfirm "$pkg"
-            print_success "$pkg installed"
-        fi
-    done
-fi
-
-################################################################################
-# 2. Install Claude Code
+# 1. Install Claude Code
 ################################################################################
 
 if [ "$INSTALL_CLAUDE" = true ]; then
@@ -1975,7 +1967,7 @@ print_header "Installation Complete!"
 echo -e "${GREEN}All tasks completed successfully!${NC}\n"
 
 # Only show installed components summary if something was actually installed
-if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
+if [ "$INSTALL_MAINLINE" = true ] || \
    [ "$INSTALL_CLAUDE" = true ] || [ "$INSTALL_CODEX" = true ] || \
    [ "$INSTALL_SCREENSAVER" = true ] || [ "$INSTALL_PLYMOUTH" = true ] || \
    [ "$INSTALL_FISH" = true ] || \
@@ -1988,10 +1980,6 @@ if [ "$INSTALL_MAINLINE" = true ] || [ "$INSTALL_PACKAGES" = true ] || \
 
     if [ "$INSTALL_MAINLINE" = true ]; then
         echo -e "  • ${CYAN}linux-mainline${NC} kernel (Chaotic-AUR)"
-    fi
-
-    if [ "$INSTALL_PACKAGES" = true ]; then
-        echo -e "  • System packages (npm, nano)"
     fi
 
     if [ "$INSTALL_CLAUDE" = true ]; then
