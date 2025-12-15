@@ -851,10 +851,10 @@ if [ "$UNINSTALL_MODE" = true ]; then
             print_success "Noctalia keybindings removed"
         fi
 
-        # Kill Noctalia Shell process (quickshell with noctalia-shell config)
-        if pgrep -f "qs.*noctalia-shell" >/dev/null 2>&1; then
+        # Kill Noctalia Shell process (quickshell)
+        if pgrep -x quickshell >/dev/null 2>&1; then
             print_step "Stopping Noctalia Shell..."
-            pkill -f "qs.*noctalia-shell"
+            pkill -x quickshell
             sleep 0.3
             print_success "Noctalia Shell stopped"
         else
@@ -1871,7 +1871,7 @@ exec-once = /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec-once = omarchy-cmd-first-run
 exec-once = systemctl --user import-environment $(env | cut -d'=' -f 1)
 exec-once = dbus-update-activation-environment --systemd --all
-exec-once = uwsm-app -- qs -c noctalia-shell
+exec-once = quickshell -p /etc/xdg/quickshell/noctalia-shell
 EOF
         print_success "Noctalia Shell added to autostart"
     fi
@@ -1897,6 +1897,7 @@ bindld = ,XF86AudioPlay, Play/Pause, exec, playerctl play-pause
 bindld = ,XF86AudioPause, Pause, exec, playerctl play-pause
 bindld = ,XF86AudioNext, Next track, exec, playerctl next
 bindld = ,XF86AudioPrev, Previous track, exec, playerctl previous
+bindd = CTRL, ESCAPE, Restart Noctalia Shell, exec, pkill quickshell; hyprctl dispatch exec "quickshell -p /etc/xdg/quickshell/noctalia-shell"
 EOF
         print_success "Noctalia keybindings added"
     fi
@@ -1921,16 +1922,23 @@ EOF
         NEED_RESTART=true
     fi
 
+    # Kill any running QuickShell instances (including Omarchy's notification widget)
+    # This ensures Noctalia's widget takes over completely
+    if pgrep -x quickshell >/dev/null 2>&1; then
+        print_step "Stopping existing QuickShell instances..."
+        pkill -x quickshell 2>/dev/null || true
+        sleep 0.3
+        NEED_RESTART=true
+    fi
+
     # Ensure Noctalia is running
     if [ "$NEED_RESTART" = true ]; then
         print_step "Switching to Noctalia Shell..."
-        pkill -f "qs.*noctalia-shell" 2>/dev/null || true  # Kill any existing instance to avoid duplicates
-        sleep 0.3
-        uwsm-app -- qs -c noctalia-shell &>/dev/null &
+        hyprctl dispatch exec "quickshell -p /etc/xdg/quickshell/noctalia-shell" &>/dev/null
         print_success "Noctalia Shell activated (replaced waybar, mako, swayosd, swaybg)"
-    elif ! pgrep -f "qs.*noctalia-shell" >/dev/null 2>&1; then
+    elif ! pgrep -x quickshell >/dev/null 2>&1; then
         print_step "Starting Noctalia Shell..."
-        uwsm-app -- qs -c noctalia-shell &>/dev/null &
+        hyprctl dispatch exec "quickshell -p /etc/xdg/quickshell/noctalia-shell" &>/dev/null
         print_success "Noctalia Shell started"
     else
         print_skip "Noctalia Shell is already running"
