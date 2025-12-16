@@ -41,6 +41,7 @@ Screen {
     color: $mauve;
     background: $mantle;
     border-bottom: solid $surface0;
+    text-align: center;
 }
 
 /* Footer with key bindings */

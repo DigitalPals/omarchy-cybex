@@ -16,12 +16,12 @@ pub fn render_option_list(frame: &mut Frame, area: Rect, state: &AppState) {
         .map(|opt| {
             let is_installed = state.is_installed(opt.id);
 
-            // Status indicator [OK] or [ ]
-            let status = if is_installed {
-                Span::styled("[OK]", Style::default().fg(THEME.green))
-            } else {
-                Span::styled("[ ]", Style::default().fg(THEME.overlay0))
-            };
+            // Status indicator [OK] or [ ] - padded to 4 chars for alignment
+            let status_text = if is_installed { "[OK]" } else { "[ ]" };
+            let status = Span::styled(
+                format!("{:<4}", status_text),
+                Style::default().fg(if is_installed { THEME.green } else { THEME.overlay0 }),
+            );
 
             // Option name (padded for alignment)
             let name = Span::styled(
