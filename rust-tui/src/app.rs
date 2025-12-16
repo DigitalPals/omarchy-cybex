@@ -6,7 +6,7 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::time::Duration;
 
 use color_eyre::Result;
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use ratatui::prelude::*;
 
 use crate::config::{mark_installed, mark_uninstalled};
@@ -45,12 +45,9 @@ impl App {
             self.handle_installer_events();
 
             // Handle keyboard events with timeout
-            // Only process Press events (not Release/Repeat) for SSH compatibility
             if event::poll(Duration::from_millis(50))? {
                 if let Event::Key(key) = event::read()? {
-                    if key.kind == KeyEventKind::Press {
-                        self.handle_key_event(key);
-                    }
+                    self.handle_key_event(key);
                 }
             }
 
