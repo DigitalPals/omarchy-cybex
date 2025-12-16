@@ -1,4 +1,4 @@
-"""Subprocess execution for running install.sh"""
+"""Subprocess execution for running install script"""
 
 import asyncio
 from typing import List, Callable, Optional
@@ -11,10 +11,10 @@ async def run_installation(
     output_callback: Optional[Callable[[str], None]] = None,
 ) -> int:
     """
-    Execute install.sh and stream output in real-time.
+    Execute install script and stream output in real-time.
 
     Args:
-        script_dir: Directory containing install.sh
+        script_dir: Directory containing install
         options: List of option IDs to install/uninstall
         uninstall: If True, run in uninstall mode
         output_callback: Function to call with each output line
@@ -23,7 +23,7 @@ async def run_installation(
         Exit code from the process
     """
     # Build command
-    cmd = [f"{script_dir}/install.sh"]
+    cmd = [f"{script_dir}/install"]
     if uninstall:
         cmd.append("uninstall")
     cmd.extend(options)
@@ -55,8 +55,8 @@ def build_command(
     options: List[str],
     uninstall: bool = False
 ) -> List[str]:
-    """Build the install.sh command for display purposes"""
-    cmd = [f"{script_dir}/install.sh"]
+    """Build the install command for display purposes"""
+    cmd = [f"{script_dir}/install"]
     if uninstall:
         cmd.append("uninstall")
     cmd.extend(options)

@@ -1,4 +1,4 @@
-//! Subprocess execution for install.sh
+//! Subprocess execution for install script
 
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -83,7 +83,7 @@ pub fn run_install_command(
             }
             Err(e) => {
                 let _ = event_tx.send(InstallerEvent::Error(format!(
-                    "Failed to spawn install.sh: {}",
+                    "Failed to spawn install: {}",
                     e
                 )));
             }

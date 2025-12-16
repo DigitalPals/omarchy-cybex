@@ -19,7 +19,7 @@ use crate::ui::render_layout;
 pub struct App {
     /// Application state
     state: AppState,
-    /// Path to the script directory containing install.sh
+    /// Path to the script directory containing install
     script_dir: PathBuf,
     /// Channel receiver for installer events
     installer_rx: Option<Receiver<InstallerEvent>>,

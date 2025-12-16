@@ -28,7 +28,7 @@ def main() -> None:
     """Main entry point"""
     if len(sys.argv) < 2:
         print("Usage: python main.py <script_dir>")
-        print("This is typically invoked by install.sh")
+        print("This is typically invoked by ./install")
         sys.exit(1)
 
     script_dir = sys.argv[1]
@@ -38,10 +38,10 @@ def main() -> None:
         print(f"Error: Script directory not found: {script_dir}")
         sys.exit(1)
 
-    # Verify install.sh exists
-    install_script = Path(script_dir) / "install.sh"
+    # Verify install script exists
+    install_script = Path(script_dir) / "install"
     if not install_script.is_file():
-        print(f"Error: install.sh not found in {script_dir}")
+        print(f"Error: install not found in {script_dir}")
         sys.exit(1)
 
     # Run the TUI
